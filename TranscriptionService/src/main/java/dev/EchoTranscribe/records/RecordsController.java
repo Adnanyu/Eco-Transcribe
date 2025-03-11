@@ -2,6 +2,7 @@ package dev.EchoTranscribe.records;
 // import org.springframework.web.bind.annotation.ModelAttribute;
 import java.util.Optional;
 import org.slf4j.LoggerFactory;
+import org.cloudinary.json.JSONObject;
 import org.slf4j.Logger;
 import java.net.URI;
 
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -80,8 +82,19 @@ public class RecordsController {
                 DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
                 LocalDateTime recordingDate = LocalDateTime.parse(createdAtString, formatter);
 
+                RestTemplate restTemplate = new RestTemplate();
+
+                String url = "http://localhost:8000/transcrip?url=" + uploadResult.get("url").toString();
+
+                String response = restTemplate.getForObject(url, String.class);
+
+                JSONObject jsonObject = new JSONObject(response);
+
+                String text = jsonObject.getString("text");
+
+
                 String[] transcriptInfo = assemblyService.transcript(uploadResult.get("url").toString());
-                Transcript trancriptedText = new Transcript(null, null, transcriptInfo[0], null, transcriptInfo[1]);
+                Transcript trancriptedText = new Transcript(null, null, text, null, transcriptInfo[1]);
 
                 Transcript savedTranscript = transcriptRepository.save(trancriptedText);
                 logger.info(savedTranscript.transcript_id().toString());
