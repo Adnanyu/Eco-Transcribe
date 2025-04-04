@@ -4,13 +4,12 @@ package dev.EchoTranscribe.transcripts;
 import org.springframework.data.annotation.Id;
 
 public record Transcript(@Id Long transcript_id,
-        Long recording_id,
+        Long recordingId,
         String text,
         String summary,
         String language) {
 
-    public Transcript withRecordingId(Long transcript_id, Long recording_id) {
-    
+    public Transcript withrecording_id(Long transcript_id, Long recording_id) {
         return new Transcript(transcript_id, recording_id, text(), summary(), language());
     }
 }
