@@ -1,17 +1,13 @@
 package dev.EchoTranscribe.transcripts;
-
+import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 
-public interface TranscriptRepository extends CrudRepository<Transcript, Long>, PagingAndSortingRepository<Transcript, Long>{
 
+public interface TranscriptRepository extends CrudRepository<Transcript, Long>, PagingAndSortingRepository<Transcript, Long>{
+    
+    Optional<Transcript> findByRecordingId(Long recording_id);
+    
 }
 
-
-
-
-
-// interface RecordingRepository extends CrudRepository<Recording, Long>, PagingAndSortingRepository<Recording, Long> {
-//     // Page<Recording> findAll(PageRequest pageRequest);
-// }
