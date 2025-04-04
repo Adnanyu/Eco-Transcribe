@@ -11,15 +11,16 @@ public record Recording(@Id Long id,
         LocalDateTime recordedDate,
         LocalDateTime recordingStartTime,
         LocalDateTime recordingEndTime,
+        double duration,
         Long transcript,
         Long subTranscripts,
         Long translatedTranscript 
               
 ) {
         public Recording withRecordingUrl(String recordingUrl, LocalDateTime recordedDate, String title,
-                        RecordingType recordingType, Long transcript) {
+                        RecordingType recordingType, Long transcript, double duration) {
                 return new Recording(id(), recordingUrl, title, recordingType, recordedDate, recordingStartTime(),
-                                recordingEndTime(), transcript, subTranscripts(), translatedTranscript());
+                                recordingEndTime(), duration(), transcript, subTranscripts(), translatedTranscript());
         }
         
         // public Recording withRecordingTitle(String recordingUrl, LocalDateTime recordedDate) {
