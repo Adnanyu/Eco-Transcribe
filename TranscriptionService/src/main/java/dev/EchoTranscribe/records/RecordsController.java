@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,9 +25,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
 
-// import com.assemblyai.api.resources.transcripts.types.Transcript;
 
-import dev.EchoTranscribe.service.AssemblyService;
 import dev.EchoTranscribe.service.CloudinaryService;
 import dev.EchoTranscribe.transcripts.Transcript;
 import dev.EchoTranscribe.transcripts.TranscriptRepository;
@@ -45,13 +44,11 @@ public class RecordsController {
 
     private final RecordingRepository recordingRepository;
     private final CloudinaryService cloudinaryService;
-    private final AssemblyService assemblyService;
     private final TranscriptRepository transcriptRepository;
 
-    public RecordsController(RecordingRepository recordingRepository, CloudinaryService cloudinaryService, AssemblyService assemblyService, TranscriptRepository transcriptRepository) {
+    public RecordsController(RecordingRepository recordingRepository, CloudinaryService cloudinaryService, TranscriptRepository transcriptRepository) {
         this.recordingRepository = recordingRepository;
         this.cloudinaryService = cloudinaryService;
-        this.assemblyService = assemblyService;
         this.transcriptRepository = transcriptRepository;
     }
 
@@ -79,8 +76,16 @@ public class RecordsController {
             try {
                 Map<String, Object> uploadResult = cloudinaryService.uploadAudio(file, file.getOriginalFilename());
                 String createdAtString = (String) uploadResult.get("created_at");
+
+                Object durationObj = uploadResult.get("duration");
+                double duration = durationObj != null ? ((Number) durationObj).doubleValue() : 0;
+
+
+                System.out.println("Duration: " + duration + " seconds");
                 DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
                 LocalDateTime recordingDate = LocalDateTime.parse(createdAtString, formatter);
+
+                logger.info("Durataion of audio:", duration);
 
                 RestTemplate restTemplate = new RestTemplate();
 
@@ -92,20 +97,18 @@ public class RecordsController {
 
                 String text = jsonObject.getString("text");
 
-
-                String[] transcriptInfo = assemblyService.transcript(uploadResult.get("url").toString());
-                Transcript trancriptedText = new Transcript(null, null, text, null, transcriptInfo[1]);
+                Transcript trancriptedText = new Transcript(null, null, text, null, "English");//I wrote english here now but will make it dynamic later
 
                 Transcript savedTranscript = transcriptRepository.save(trancriptedText);
                 logger.info(savedTranscript.transcript_id().toString());
 
                 Recording newRecording = new Recording(null, uploadResult.get("url").toString(),
-                        file.getOriginalFilename(), RecordingType.UPLOADED, recordingDate, null, null,
+                        file.getOriginalFilename(), RecordingType.UPLOADED, recordingDate, null, null, duration,
                         savedTranscript.transcript_id(), null,
                         null);
                 Recording savedRecording = recordingRepository.save(newRecording);
-                transcriptRepository
-                        .save(trancriptedText.withRecordingId(savedTranscript.transcript_id(), savedRecording.id()));
+                // transcriptRepository
+                //         .save(trancriptedText.withrecording_id(savedTranscript.transcript_id(), savedRecording.id()));
 
                 System.out.println(uploadResult.get("url"));
                 URI locationOfTheNewRecording = ucb.path("/api/recordings/{id}").buildAndExpand(savedRecording.id())
@@ -123,7 +126,7 @@ public class RecordsController {
         if (foundRecoridng.isPresent()) {
             Recording updatedRecording = new Recording(recording.id(), recording.recordingUrl(), recording.title(),
                     recording.recordingType(), recording.recordedDate(), recording.recordingStartTime(),
-                    recording.recordingEndTime(), recording.transcript(), recording.subTranscripts(),
+                    recording.recordingEndTime(), recording.duration(), recording.transcript(), recording.subTranscripts(),
                     recording.translatedTranscript());
             recordingRepository.save(updatedRecording);
             return ResponseEntity.noContent().build();
@@ -133,39 +136,21 @@ public class RecordsController {
     }
 
     @DeleteMapping("/{id}")
-    private ResponseEntity<Void> deleteTranscript(@PathVariable Long id) {
+    private ResponseEntity<String> deleteTranscript(@PathVariable Long id) {
         Optional<Recording> foundRecording = recordingRepository.findById(id);
+
         if (foundRecording.isPresent()) {
+            Optional<Transcript> transcripts = transcriptRepository.findByRecordingId(id);
+            if (!transcripts.isEmpty()) {
+                transcriptRepository.deleteById(transcripts.get().recordingId()); 
+            }
+
             recordingRepository.deleteById(id);
-            return ResponseEntity.noContent().build();
+            String message = "Recording with ID " + id + " and its associated transcripts have been deleted.";
+            return ResponseEntity.noContent().header("Message", message).build();
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Recording with ID " + id + " not found.");
         }
-        return ResponseEntity.notFound().build();
+
     }
-    // @PostMapping
-    // private ResponseEntity<String> createRecording(@ModelAttribute Recording newRecording, UriComponentsBuilder ucb) {
-    //     logger.info(newRecording.title());
-    //     if (!file.isEmpty()) {
-    //         try {
-    //             Map<String, Object> uploadResult = cloudinaryService.uploadAudio(file);
-
-    //             String createdAtString = (String) uploadResult.get("created_at");
-    //             DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
-    //             LocalDateTime recordingDate = LocalDateTime.parse(createdAtString, formatter);
-
-    //             Recording updatedRecording = newRecording.withRecordingUrl(uploadResult.get("url").toString(),
-    //                     recordingDate);
-    //             Recording savedRecording = recordingRepository.save(updatedRecording);
-
-    //             System.out.println(uploadResult.get("url"));
-    //             URI locationOfTheNewRecording = ucb.path("/api/recordings/{id}").buildAndExpand(savedRecording.id())
-    //                     .toUri();
-    //             return ResponseEntity.created(locationOfTheNewRecording).build();
-    //         } catch (IOException e) {
-    //             return ResponseEntity.status(500).body("Failed to upload audio");
-    //         }
-    //     } else {
-    //         return ResponseEntity.status(500).body("Failed to upload audio");
-    //     }
-    //     return ResponseEntity.status(200).body("hello");
-    // }
 }
