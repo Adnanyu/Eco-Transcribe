@@ -90,7 +90,8 @@ public class CloudinaryService {
                     "unique_filename", true,
                     "folder", "Eco-Transcribe",
                     "resource_type", "auto",
-                    "filename_override",fileName,
+                    "filename_override", fileName,
+                    "resource_type", "auto",
                     "overwrite", true);
             return (Map<String, Object>) cloudinary.uploader().upload(file.getBytes(), params);
         }catch(IOException e){
