@@ -3,6 +3,7 @@ package dev.EchoTranscribe.transcripts;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
+import org.cloudinary.json.JSONObject;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Page;
@@ -22,6 +23,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import dev.EchoTranscribe.service.AssemblyService;
 import dev.EchoTranscribe.records.Recording;
 import dev.EchoTranscribe.records.RecordingRepository;
+import org.springframework.web.client.RestTemplate;
 
 @RestController
 @RequestMapping("/api/transcripts")
@@ -29,7 +31,6 @@ public class TranscriptController {
 
     private final TranscriptRepository transcriptRepository;
     private final RecordingRepository recordingRepository;
-    private final AssemblyService assemblyService;
 
     public TranscriptController(TranscriptRepository transcriptRepository, RecordingRepository recordingRepository,
             AssemblyService assemblyService) {
@@ -47,38 +48,54 @@ public class TranscriptController {
 
     @GetMapping("/{id}")
     private ResponseEntity<Transcript> findTranscript(@PathVariable Long id) {
-        Optional<Transcript> foundTranscript = transcriptRepository.findById(id);
+        Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(id);
         if (foundTranscript.isPresent()) {
             return ResponseEntity.ok(foundTranscript.get());
         }
         return ResponseEntity.notFound().build();
     }
 
-    @PostMapping("/{RecordingId}")
-    private ResponseEntity<String> createTranscript(@PathVariable Long RecordingId, UriComponentsBuilder ucb) {
-        Optional<Recording> foundRecording = recordingRepository.findById(RecordingId);
-        Optional<Transcript> foundTranscript = transcriptRepository.findById(foundRecording.get().id());
-        if (foundTranscript.isPresent()) {
-            return ResponseEntity.status(409).body("The audio already had a transcript");
+    @PostMapping("/{recording_id}")
+    private ResponseEntity<String> createTranscript(@PathVariable Long recording_id, UriComponentsBuilder ucb) {
+        Optional<Recording> foundRecording = recordingRepository.findById(recording_id);
+        
+        if (!foundRecording.isPresent()) {
+            return ResponseEntity.status(404).body("Recording not found");
         }
-        if (foundRecording.isPresent()) {
-            String[] transcriptInfo = assemblyService.transcript(foundRecording.get().recordingUrl().toString());
-            Transcript newTranscript = new Transcript(null, foundRecording.get().id(), transcriptInfo[0], null,
-                    transcriptInfo[1]);
-            Transcript savedTranscript = transcriptRepository
-                    .save(newTranscript.withRecordingId(foundRecording.get().id(), foundRecording.get().id()));
+
+        Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(recording_id);
+        if (foundTranscript.isPresent()) {
+            return ResponseEntity.status(409).body("The audio already has a transcript");
+        }
+
+        try {
+            Long foundRecordingtId = foundRecording.get().id();
+            
+            RestTemplate restTemplate = new RestTemplate();
+            String url = "http://localhost:8000/transcrip?url=" + foundRecording.get().recordingUrl();
+            String response = restTemplate.getForObject(url, String.class);
+            
+            JSONObject jsonObject = new JSONObject(response);
+            String text = jsonObject.getString("text");
+            
+            Transcript newTranscript = new Transcript(null, foundRecordingtId, text, null, "english");
+            Transcript savedTranscript = transcriptRepository.save(newTranscript);
+            
             URI locationOfTheNewTranscript = ucb.path("/transcripts/{id}")
                     .buildAndExpand(savedTranscript.transcript_id()).toUri();
             return ResponseEntity.created(locationOfTheNewTranscript).build();
+            
+        } catch (Exception e) { 
+            return ResponseEntity.status(500).body("Failed to transcribe the audio: " + e.getMessage());
         }
-        return ResponseEntity.status(404).body("your audio couldn't transcript");
     }
+
     
     @PutMapping("/{id}")
     private ResponseEntity<Void> updateTranscript(@PathVariable Long id, @RequestBody Transcript transcript) {
         Optional<Transcript> foundTranscript = transcriptRepository.findById(id);
         if (foundTranscript.isPresent()) {
-            Transcript updatedTranscript = new Transcript(transcript.transcript_id(), transcript.recording_id(),
+            Transcript updatedTranscript = new Transcript(transcript.transcript_id(), transcript.recordingId(),
                     transcript.text(), transcript.summary(), transcript.language());
             transcriptRepository.save(updatedTranscript);
             return ResponseEntity.noContent().build();
