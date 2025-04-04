@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import dev.EchoTranscribe.service.AssemblyService;
 import dev.EchoTranscribe.records.Recording;
 import dev.EchoTranscribe.records.RecordingRepository;
 import org.springframework.web.client.RestTemplate;
@@ -32,10 +31,8 @@ public class TranscriptController {
     private final TranscriptRepository transcriptRepository;
     private final RecordingRepository recordingRepository;
 
-    public TranscriptController(TranscriptRepository transcriptRepository, RecordingRepository recordingRepository,
-            AssemblyService assemblyService) {
+    public TranscriptController(TranscriptRepository transcriptRepository, RecordingRepository recordingRepository) {
         this.transcriptRepository = transcriptRepository;
-        this.assemblyService = assemblyService;
         this.recordingRepository = recordingRepository;
     }
     
