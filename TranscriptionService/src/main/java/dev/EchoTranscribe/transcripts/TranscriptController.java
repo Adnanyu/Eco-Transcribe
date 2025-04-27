@@ -78,6 +78,11 @@ public class TranscriptController {
             Transcript newTranscript = new Transcript(null, foundRecordingtId, text, null, "english");
             Transcript savedTranscript = transcriptRepository.save(newTranscript);
             
+            foundRecording.ifPresent(r -> {
+                Recording updatedTranscript = r.withTranscriptId(savedTranscript.transcript_id());
+                recordingRepository.save(updatedTranscript);
+            });
+            
             URI locationOfTheNewTranscript = ucb.path("/transcripts/{id}")
                     .buildAndExpand(savedTranscript.transcript_id()).toUri();
             return ResponseEntity.created(locationOfTheNewTranscript).build();
@@ -90,7 +95,7 @@ public class TranscriptController {
     
     @PutMapping("/{id}")
     private ResponseEntity<Void> updateTranscript(@PathVariable Long id, @RequestBody Transcript transcript) {
-        Optional<Transcript> foundTranscript = transcriptRepository.findById(id);
+        Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(id);
         if (foundTranscript.isPresent()) {
             Transcript updatedTranscript = new Transcript(transcript.transcript_id(), transcript.recordingId(),
                     transcript.text(), transcript.summary(), transcript.language());
@@ -101,7 +106,7 @@ public class TranscriptController {
     }
     @DeleteMapping("{id}")
     private ResponseEntity<Void> deleteTranscript(@PathVariable Long id) {
-        Optional<Transcript> foundTranscript = transcriptRepository.findById(id);
+        Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(id);
         if (foundTranscript.isPresent()) {
             transcriptRepository.deleteById(id);
             return ResponseEntity.noContent().build();
