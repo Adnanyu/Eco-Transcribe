@@ -3,7 +3,9 @@ package dev.EchoTranscribe.records;
 import java.time.LocalDateTime;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
+@Table("RECORDING")
 public record Recording(@Id Long id,
         String recordingUrl,
         String title,
@@ -21,6 +23,12 @@ public record Recording(@Id Long id,
                         RecordingType recordingType, Long transcript, double duration) {
                 return new Recording(id(), recordingUrl, title, recordingType, recordedDate, recordingStartTime(),
                                 recordingEndTime(), duration(), transcript, subTranscripts(), translatedTranscript());
+        }
+
+        public Recording withTranscriptId(Long transcriptId) {
+                return new Recording(id(), recordingUrl(), title(), recordingType(), recordedDate(),
+                                recordingStartTime(), recordingEndTime(), duration(), transcriptId, subTranscripts(),
+                                translatedTranscript());
         }
         
         // public Recording withRecordingTitle(String recordingUrl, LocalDateTime recordedDate) {
