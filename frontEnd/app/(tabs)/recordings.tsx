@@ -1,4 +1,4 @@
-import { Image, StyleSheet, Platform, ScrollView, FlatList, View, Appearance, Button, Alert, TouchableHighlight, Pressable } from 'react-native';
+import { Image, StyleSheet, Platform, ScrollView, FlatList, View, Appearance, Button, Alert, TouchableHighlight, Pressable, TouchableOpacity } from 'react-native';
 import { ImagePickerResponse, launchImageLibrary } from 'react-native-image-picker';
 import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
@@ -7,48 +7,23 @@ import { ThemedView } from '@/components/ThemedView';
 import { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import axios from 'axios';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
-import { useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
+import { getRecordings, uploadFile } from '../api/api';
+import { timeFormat } from '../util/timeFormat';
+import Spinner from '@/components/Spinner';
+import { Recording } from '../types/types';
 
-type Recording = {
-  id: Number,
-  recordingUrl: String,
-  title: String,
-  recordingType: String,
-  recordedDate: String,
-  duration: number,
-  recordingStartTim: String,
-  recordingEndTime: String,
-  transcript: Number,
-  subTranscripts: Number,
-  translatedTranscript: Number,
-};
 
-export const TimeFormat = (duration: number): string => {
-  const hrs = ~~(duration / 3600);
-  const mins = ~~((duration % 3600) / 60);
-  const secs = ~~duration % 60;
-
-  let ret = "";
-
-  if (hrs > 0) {
-    ret += "" + hrs + ":" + (mins < 10 ? "0" : "");
-  }
-
-  ret += "" + mins + ":" + (secs < 10 ? "0" : "");
-  ret += "" + secs;
-
-  return ret;
-}
 
 export default function HomeScreen() {
   const [audios, setAudios] = useState<Recording[]>([])
   const [fileUri, setFileUri] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileType, setFiletype] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const navigation = useNavigation();
   const router = useRouter()
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
@@ -68,56 +43,57 @@ export default function HomeScreen() {
       setFileUri(result.assets[0].uri);
       setFileName(result.assets[0].fileName!);
       setFiletype(result.assets[0].type!);
-      uploadFile(fileUri)
+      setIsLoading(true);
+      await uploadFile(fileUri);
+      setIsLoading(false);
     }
   };
 
-  const uploadFile = async (fileUri: string | null) => {
-    if (!fileUri) {
-      Alert.alert('No file selected!');
-      return;
-    }
 
-    try {
-      const response = await FileSystem.uploadAsync('http://localhost:8080/api/recordings/file', fileUri, {
-        fieldName: 'file',
-        httpMethod: 'POST',
-        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-      });
+  
 
-      if (response.status === 201) {
-        Alert.alert('Upload successful');
-      } else {
-        Alert.alert('Upload failed');
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      Alert.alert('Error uploading file');
-    }
-  };
-
-  const getAudios = async () => {
-    try {
-      const response = await fetch('http://localhost:8080/api/recordings');
-      const data = await response.json();
-      setAudios(data);
-    } catch (error) {
-      console.error(error)
-    }
-  }
   const handleClick = (id: string) => {
-    // router.push(`/recordings/${id}`)
+    router.push(`/recordings/${id}`)
   }
   useEffect(() => {
-      getAudios()
+
+    const fetchRecordings = async () => {
+      try {
+        const recordings: Recording[] = await getRecordings();
+        setAudios(recordings); 
+      } catch (error) {
+        console.error('Error fetching recordings:', error);
+      }
+    };
+
+    fetchRecordings();
   }, [uploadFile])
+  // useEffect(() => { 
+  //         navigation.setOptions({
+  //             headerRight: () => (
+  //               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+  //                 <TouchableOpacity
+  //                   onPress={() => {}} // Navigate to explore page
+  //                   style={{
+  //                     paddingHorizontal: 15, 
+  //                     paddingVertical: 15, 
+  //                   }}
+  //                 >
+  //                   <ThemedText style={{ color: '#FA2E47', fontSize: 16 }}>Edit</ThemedText>
+  //                 </TouchableOpacity>
+  //               </View>
+  //             ),
+  //         })
+  //     }, [])
+
   const Container = Platform.OS === 'web' ? ScrollView : SafeAreaView;
   return (
     <ThemedView style={styles.container}>
       <Container style={{ flex: 1 }}>
+        <Spinner isLoading={isLoading} text={'Uploading Recording'} />
         <ThemedView style={{justifyContent: 'space-between'}}>
           {/* <ThemedText>All Recordings</ThemedText> */}
-        <TouchableHighlight onPress={pickImage}>
+        <TouchableHighlight onPress={() => pickImage()}>
             <View style={styles.uploadRec}>
             <IconSymbol size={30} name={"icloud.and.arrow.up"}  color={theme.tabIconSelected} />
             <ThemedText style={{fontWeight: 'bold'}}> Upload Recording</ThemedText>
@@ -132,12 +108,12 @@ export default function HomeScreen() {
             data={audios}
             keyExtractor={(audio) => audio.id.toString()}
             renderItem={({ item }) => (
-              <Pressable onPress={() => handleClick(item.id.toString())}>
+              <Pressable onPress={() => handleClick(item.id.toString())} onLongPress={()=>Alert.prompt('are you sure you want to delete?')}>
               <ThemedView style={styles.recordingContainer}>
                 <ThemedText style={styles.recordingTitle}>{item.title.length > 20 ? item.title.substring(0, 20) + '...': item.title}</ThemedText>
                 <View style={styles.recordingInfo}>
                   <ThemedText style={{color: '#8E8E93'}}>{item.recordedDate.replace('T', ' ').slice(0,-3)}</ThemedText>
-                  <ThemedText style={{ color: '#8E8E93' }}>{TimeFormat(item.duration)}</ThemedText>
+                  <ThemedText style={{ color: '#8E8E93' }}>{timeFormat(item.duration)}</ThemedText>
                 </View>
               </ThemedView>
               </Pressable>
