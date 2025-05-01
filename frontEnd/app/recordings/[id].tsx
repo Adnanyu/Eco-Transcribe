@@ -9,16 +9,16 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import { timeFormat } from "../util/timeFormat";
 
 
-  import React, { Component } from 'react';
-
 import {
     Text,
-    Image,
     TouchableOpacity,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { Recording, Segments, Transcript } from "../types/types";
-import { getRecording, getSegments, getTranscript } from "../api/api";
+import { createTranscript, getRecording, getSegments, getTranscript } from "../api/api";
+import ChatScreen from "../(tabs)/chat";
+import { handleSeek, JumpToSegment, playSound, rewind, skip, stopSound } from "../util/AudioControls";
+import DropDown from "@/components/Dropdown";
 
 const screenHeight = Dimensions.get('window').height;
 
@@ -40,6 +40,13 @@ const FlatListHeader = ({ handleSectionChange }: { handleSectionChange: (section
             <View style={styles.buttons}>
             <Text style={{color: 'white'}}>
                 Transcript
+            </Text>
+            </View>
+        </Pressable>
+        <Pressable onPress={() => handleSectionChange('chat')}>
+            <View style={styles.buttons}>
+            <Text style={{color: 'white'}}>
+                Chat
             </Text>
             </View>
         </Pressable>
@@ -87,64 +94,8 @@ export default function RecordingDetail() {
         }));
       };
 
+
     
-    const playSound = async () => {
-        console.log('loading sound');
-        const { sound, status  } = await Audio.Sound.createAsync({
-            uri: recording?.recordingUrl!
-        })
-        setSound(sound);
-        console.log('Playing Sound');
-        sound.setPositionAsync(position)
-        await sound.playAsync();
-        sound.setOnPlaybackStatusUpdate(onPlayBackStatusUpdate);
-        setDuration(recording?.duration!);
-        setIsPlaying(true)
-    }
-    const stopSound = async () => {
-        await sound?.setPositionAsync(position);
-        await sound?.pauseAsync()
-        setIsPlaying(false)
-    }
-
-  
-
-    const onPlayBackStatusUpdate = (status: any) => {
-        if (status.isPlaying) {
-            setPosition(status.positionMillis);
-        }
-        if (status.didJustFinish) {
-            setIsPlaying(false);
-          }
-    }
-
-    const handleSeek = async (value: number) => {
-        if (sound) {
-            setIsSeeking(true);
-            await sound.setPositionAsync(value*1000)
-            setPosition(value)
-            setIsSeeking(false)
-        }
-    }
-
-    const rewind = async (seconds: number):Promise<void> => {
-        if (sound) {
-            const newPosition = Math.max(position - seconds * 1000, recording?.duration!);
-            await sound.setPositionAsync(newPosition)
-        }
-    }
-    const skip = async (seconds: number): Promise<void> => {
-        if (sound) {
-            const newPosition = Math.max(position + seconds * 1000, 0);
-            await sound.setPositionAsync(newPosition)
-        }
-    }
-
-    const JumpToSegment = async (start: number): Promise<void> => {
-        if (sound) {
-            await sound.setPositionAsync(Math.round(start * 1000 ) + 1);
-        }
-    }
 
     const logPosition = (value: number) => {
         console.log("value:", value)
@@ -152,7 +103,14 @@ export default function RecordingDetail() {
         setPosition(position)
     }
 
-   
+    const onPlayBackStatusUpdate = (status: any): void => {
+        if (status.isPlaying) {
+            setPosition(status.positionMillis);
+        }
+        if (status.didJustFinish) {
+            setIsPlaying(false);
+            }
+    }
   
 
     const handleSectionChange = (current: string): void => {
@@ -186,6 +144,14 @@ export default function RecordingDetail() {
                 setRecording(recording); 
                 setSegments(segments); 
                 setTranscript(transcript); 
+                console.log('loading sound');
+                const { sound, status  } = await Audio.Sound.createAsync({
+                    uri: recording?.recordingUrl!
+                })
+                setSound(sound);
+                sound.setPositionAsync(position)
+                sound.setOnPlaybackStatusUpdate(onPlayBackStatusUpdate);
+                setDuration(recording?.duration!);
               } catch (error) {
                 console.error('Error fetching recordings:', error);
               }
@@ -205,7 +171,7 @@ export default function RecordingDetail() {
             headerRight: () => (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <TouchableOpacity
-                  onPress={() => {router.push(`/recordings/edit/${id}`)}} // Navigate to explore page
+                  onPress={() => {router.push(`/recordings/edit/${id}`)}} 
                   style={{
                     paddingHorizontal: 15, 
                     paddingVertical: 15, 
@@ -237,15 +203,96 @@ export default function RecordingDetail() {
             //     viewPosition?: number,
             //   }
        }
-    },[position])
+    }, [position])
+    
+    let Element;
+    if (textContent === 'segments') {
+        Element = <SafeAreaView>
+                        <FlatList
+                            style={{height: '80%'}}
+                ref={segmentRef}
+                data={segments}
+                keyExtractor={(segment) => segment.id.toString()}
+                renderItem={({ item }) => (
+                    <Pressable
+                        onPress={async () => {
+                            await JumpToSegment(item.start, sound);
+                            setSelectedIndex(item.id + 1);
+                            setSelectedItem(item);
+                        }}
+                    >
+                        <Text
+                            style={[
+                                styles.segmentText,
+                                (position / 1000) >= item.start &&
+                                (position / 1000) <= item.end
+                                    ? { color: '#DEDEDE', justifyContent: 'center' }
+                                    : {},
+                            ]}
+                        >
+                            {item.text.trim()}
+                        {(position / 1000) >= item.start &&
+                            (position / 1000) <= item.end
+                                ? setSelectedItem(item)
+                                : ''}
+                        </Text>
+                    </Pressable>
+                )}
+                // getItemLayout={(data, index) => ({
+                //     length: 40, // height of each item (adjust as necessary)
+                //     offset: 100 * index, // offset of each item (adjust as necessary)
+                //     index,
+                // })}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                        />
+                        </SafeAreaView>
+    } else if ((textContent === 'transcripts')) {
+        Element =  <TranscripComp text={transcript?.text!} mode={'view'} />
+    } else {
+        Element = <SafeAreaView style={{maxHeight: '87%',}}><ChatScreen id={id.toString()} /></SafeAreaView>
+    }
+
+    // const dropDownMenus = {
+    //     'Edit': () => { },
+    //     'Delete': () =>{},
+    //     ...(recording?.transcript && { 'View Transcript': () => { router.push(`/transcripts/${recording?.id}`) } }),
+    //     ...(!recording?.transcript && { 'Create Transcript': () => createTranscript(recording!) }),
+    //     }
+    const dropDownMenus = [
+        {
+            label: 'Edit',
+            action: () => { },
+            icon: 'pencil.line'
+        },
+        {
+            label: 'Delete',
+            action: () => { },
+            icon: 'trash'
+        },
+        recording?.transcript ?
+        {
+            label: 'View transcript',
+            action: () => { router.push(`/transcripts/${recording?.id}`) } ,
+            icon: 'text.page'
+        } :
+        {
+            label: 'Create a transcript',
+            action: () => { createTranscript(recording!) },
+            icon: 'text.badge.plus'
+        },
+    ]
+    
 
     const Container = Platform.OS === 'web' ? ScrollView : SafeAreaView;
     return (
         <SafeAreaView>
         <View style={{}}>
-            <ThemedText>
-                {recording?.title}, {recording?.duration}
-            </ThemedText>
+            <ThemedView style={{justifyContent: 'space-between', flexDirection: 'row'}}>
+                <ThemedText>
+                    {recording?.title}, {recording?.duration}
+                </ThemedText>
+                    <DropDown menus={dropDownMenus}/>
+            </ThemedView>
             <View style={styles.scrollContainer}>
                 <View style={{ flexDirection: 'row' }}>
                 <Text style={[styles.text]}>
@@ -261,21 +308,21 @@ export default function RecordingDetail() {
                 minimumValue={0}
                 maximumValue={duration}
                 value={position/1000}
-                onSlidingComplete={(value) => handleSeek(value)}
+                onSlidingComplete={(value) => handleSeek(value, sound, setIsSeeking, setPosition)}
                 onValueChange={(value) => logPosition(value)}
                 disabled={isSeeking} 
                 />
             </View>
             <View style={styles.controlsContainer}>
-                <Pressable onPress={async () => await rewind(10)}>
+                <Pressable onPress={async () => await rewind(10, sound, position, recording)}>
                      {/* TODO: fix the icon color when toggled */}
                     <IconSymbol size={35} name={isPlaying ? `10.arrow.trianglehead.counterclockwise` : `10.arrow.trianglehead.counterclockwise`} color={'white'} />
                 </Pressable>
-                <Pressable onPress={async () => isPlaying ? await stopSound() : await playSound()}>
+                <Pressable onPress={async () => isPlaying ? await stopSound(sound, setIsPlaying, position) : await playSound(sound, setIsPlaying)}>
                      {/* TODO: fix the icon color when toggled */}
                     <IconSymbol size={35} name={isPlaying ? "pause.fill" : "play.fill"} color={'white'} />
                 </Pressable>
-                <Pressable onPress={async () => await skip(10)}>
+                <Pressable onPress={async () => await skip(10, sound, position)}>
                     {/* TODO: fix the icon color when toggled */}
                     <IconSymbol size={35} name={isPlaying ? `10.arrow.trianglehead.clockwise` : `10.arrow.trianglehead.clockwise`} color={'white'} /> 
                 </Pressable>
@@ -283,57 +330,8 @@ export default function RecordingDetail() {
             {/* <Text style={{backgroundColor: 'white'}}>{ selectedIndex }</Text> */}
             <FlatListHeader handleSectionChange={ handleSectionChange } />
             <Container style={styles.segmentContainer}>
-
-            {
-                    textContent !== 'segments' ? (
-                        <TranscripComp text={transcript?.text!} mode={'view'} />
-                    ) : (
-                                segments && (
-                                    <SafeAreaView>
-                                        <FlatList
-                                            style={{height: '80%'}}
-                                ref={segmentRef}
-                                data={segments}
-                                keyExtractor={(segment) => segment.id.toString()}
-                                renderItem={({ item }) => (
-                                    <Pressable
-                                        onPress={async () => {
-                                            await JumpToSegment(item.start);
-                                            setSelectedIndex(item.id + 1);
-                                            setSelectedItem(item);
-                                        }}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.segmentText,
-                                                (position / 1000) >= item.start &&
-                                                (position / 1000) <= item.end
-                                                    ? { color: '#DEDEDE', justifyContent: 'center' }
-                                                    : {},
-                                            ]}
-                                        >
-                                            {item.text.trim()}
-                                        {(position / 1000) >= item.start &&
-                                            (position / 1000) <= item.end
-                                                ? setSelectedItem(item)
-                                                : ''}
-                                        </Text>
-                                    </Pressable>
-                                )}
-                                // getItemLayout={(data, index) => ({
-                                //     length: 40, // height of each item (adjust as necessary)
-                                //     offset: 100 * index, // offset of each item (adjust as necessary)
-                                //     index,
-                                // })}
-                                contentContainerStyle={{ paddingBottom: 100 }}
-                                        />
-                                        </SafeAreaView>
-                        )
-                    )
-                }
+                {Element}
             </Container>
-            
-
             </View>
             </SafeAreaView>
     )
@@ -375,6 +373,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     segmentContainer: {
+        // maxHeight: '80%',
         color: 'red',
         backgroundColor: '#282828',
         padding: 50,
