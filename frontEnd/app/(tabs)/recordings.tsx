@@ -14,6 +14,10 @@ import { getRecordings, uploadFile } from '../api/api';
 import { timeFormat } from '../util/timeFormat';
 import Spinner from '@/components/Spinner';
 import { Recording } from '../types/types';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchRecordings } from '@/store/slices/recordingsSlice';
+import { AppDispatch, RootState } from '@/store/store';
+import { fetchTranscripts } from '@/store/slices/transcriptsSlice';
 
 
 
@@ -27,6 +31,9 @@ export default function HomeScreen() {
   const router = useRouter()
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+
+  const dispatch = useDispatch<AppDispatch>();
+  const { recordings, status, error } = useSelector((state: RootState) => state.recordings)
 
 
   const pickImage = async () => {
@@ -56,17 +63,20 @@ export default function HomeScreen() {
     router.push(`/recordings/${id}`)
   }
   useEffect(() => {
+    if (status === 'idle') {
+      dispatch(fetchRecordings());
+      dispatch(fetchTranscripts());
+    }
+    // const fetchRecordings = async () => {
+    //   try {
+    //     const recordings: Recording[] = await getRecordings();
+    //     setAudios(recordings); 
+    //   } catch (error) {
+    //     console.error('Error fetching recordings:', error);
+    //   }
+    // };
 
-    const fetchRecordings = async () => {
-      try {
-        const recordings: Recording[] = await getRecordings();
-        setAudios(recordings); 
-      } catch (error) {
-        console.error('Error fetching recordings:', error);
-      }
-    };
-
-    fetchRecordings();
+    // fetchRecordings();
   }, [uploadFile])
   // useEffect(() => { 
   //         navigation.setOptions({
@@ -89,6 +99,7 @@ export default function HomeScreen() {
   const Container = Platform.OS === 'web' ? ScrollView : SafeAreaView;
   return (
     <ThemedView style={styles.container}>
+      <Spinner isLoading={status === 'pending' ? true : false} text={'Loading Recordings'} />
       <Container style={{ flex: 1 }}>
         <Spinner isLoading={isLoading} text={'Uploading Recording'} />
         <ThemedView style={{justifyContent: 'space-between'}}>
@@ -103,10 +114,10 @@ export default function HomeScreen() {
           {/* <Button title="Upload Video" onPress={uploadFile} /> */}
         </ThemedView>
         {/* <ThemedText type="title">This page is for audio tracks</ThemedText> */}
-        {audios && (
+        {recordings && (
           <FlatList
-            data={audios}
-            keyExtractor={(audio) => audio.id.toString()}
+            data={recordings}
+            keyExtractor={(recording) => recording.id.toString()}
             renderItem={({ item }) => (
               <Pressable onPress={() => handleClick(item.id.toString())} onLongPress={()=>Alert.prompt('are you sure you want to delete?')}>
               <ThemedView style={styles.recordingContainer}>

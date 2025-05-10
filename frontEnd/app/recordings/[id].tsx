@@ -4,7 +4,7 @@ import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Audio } from "expo-av";
 import { Sound } from "expo-av/build/Audio";
-import { Button, View, StyleSheet, Pressable, Platform, ScrollView, SafeAreaView, FlatList, Dimensions, TextInput } from "react-native";
+import { Button, View, StyleSheet, Pressable, Platform, ScrollView, SafeAreaView, FlatList, Dimensions, TextInput, Alert } from "react-native";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { timeFormat } from "../util/timeFormat";
 
@@ -19,6 +19,11 @@ import { createTranscript, getRecording, getSegments, getTranscript } from "../a
 import ChatScreen from "../(tabs)/chat";
 import { handleSeek, JumpToSegment, playSound, rewind, skip, stopSound } from "../util/AudioControls";
 import DropDown from "@/components/Dropdown";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { fetchRecording } from "@/store/slices/recordingSlice";
+import Spinner from "@/components/Spinner";
+import { createTranscriptAysnc } from "@/store/slices/transcriptsSlice";
 
 const screenHeight = Dimensions.get('window').height;
 
@@ -58,17 +63,21 @@ const TranscripComp = ({ text, mode }: { text: string, mode: 'edit' | 'view' }) 
     // console.log(text.length)
     return (
         <View>
-            {text && text.trim().length <= 0 ? (<Text style={{color: 'white'}}>you dont have transcript yet</Text>)
+            {/* {text && text.trim().length <= 0 ? (<Text style={{color: 'white'}}>you dont have transcript yet</Text>)
                 :  
                 (<TextInput style={styles.transcriptText} value={text} editable={ mode === 'edit' ? true : false} multiline/>)
-                }
+                } */}
+            <ScrollView>
+                <Text style={{color: 'white', fontSize: 17}}>{text}</Text>
+            </ScrollView>
         </View>
     )
 }
 
 export default function RecordingDetail() {
-    const [recording, setRecording] = useState<Recording>();
+    // const [recording, setRecording] = useState<Recording>();
     const { id } = useLocalSearchParams();
+    const { transcripts, status, error } = useSelector((state: RootState) => state.transcripts);
     const [sound, setSound] = useState<Sound>();
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
     const [position, setPosition] = useState(0);
@@ -85,6 +94,12 @@ export default function RecordingDetail() {
 
     const navigation = useNavigation();
     const router = useRouter()
+
+    const dispatch = useDispatch<AppDispatch>();
+
+    // const { recording, status, error } = useSelector((state: RootState) => state.recording);
+    const recording = useSelector((state: RootState) => state.recordings.recordings.find(recording => recording.id.toString() === id.toString()));
+
 
     const onItemLayout = (event: { nativeEvent: { layout: { height: any; }; }; }, index: any) => {
         const { height } = event.nativeEvent.layout;
@@ -135,15 +150,18 @@ export default function RecordingDetail() {
     const remaining = '-' + timeFormat(recording?.duration! - position/1000)
 
     useEffect(() => {
+        // if (status === 'idle') {
+        //     // dispatch(fetchRecording(id.toString()));
+        // }
         const fetchApis = async () => {
             try {
                   console.log('id is: ', typeof(id.toString()))
-                const recording: Recording = await getRecording(id.toString());
+                // const recording: Recording = await getRecording(id.toString());
                 const segments: Segments[] = await getSegments(id.toString());
-                const transcript: Transcript | string = await getTranscript(id.toString());
-                setRecording(recording); 
+                // const transcript: Transcript | string = await getTranscript(id.toString());
+                // setRecording(recording); 
                 setSegments(segments); 
-                setTranscript(transcript); 
+                // setTranscript(transcript); 
                 console.log('loading sound');
                 const { sound, status  } = await Audio.Sound.createAsync({
                     uri: recording?.recordingUrl!
@@ -182,7 +200,12 @@ export default function RecordingDetail() {
               </View>
             ),
         })
-    }, [])
+        console.log('transcipts are:', transcripts);
+        const transciptt = transcripts.find(transcript => transcript.recordingId?.toString() === id.toString());
+        console.log(transciptt)
+        setTranscript(transciptt)
+
+    }, [transcripts])
 
 
     useEffect(() => {
@@ -258,6 +281,14 @@ export default function RecordingDetail() {
     //     ...(recording?.transcript && { 'View Transcript': () => { router.push(`/transcripts/${recording?.id}`) } }),
     //     ...(!recording?.transcript && { 'Create Transcript': () => createTranscript(recording!) }),
     //     }
+    const handleCreateTranscript = async (recording: Recording) => {
+        try {
+            await dispatch(createTranscriptAysnc(recording!)).unwrap()
+            Alert.alert('Transcript successfully Created');
+        } catch (err) {
+            Alert.alert('Error creating Transcript: ', error!);
+        }
+    }
     const dropDownMenus = [
         {
             label: 'Edit',
@@ -277,7 +308,7 @@ export default function RecordingDetail() {
         } :
         {
             label: 'Create a transcript',
-            action: () => { createTranscript(recording!) },
+            action: () => { handleCreateTranscript(recording!) },
             icon: 'text.badge.plus'
         },
     ]
@@ -286,11 +317,21 @@ export default function RecordingDetail() {
     const Container = Platform.OS === 'web' ? ScrollView : SafeAreaView;
     return (
         <SafeAreaView>
+        <Spinner isLoading={status === 'pending' ? true : false} text={'Creating Transcript'} />
         <View style={{}}>
-            <ThemedView style={{justifyContent: 'space-between', flexDirection: 'row'}}>
-                <ThemedText>
-                    {recording?.title}, {recording?.duration}
-                </ThemedText>
+                <ThemedView style={{ justifyContent: 'space-between', flexDirection: 'row' }}>
+                    <View>
+                        <ThemedText style={{fontSize: 17}}>
+                            Title: {recording?.title}
+                        </ThemedText>
+                        <ThemedText style={{fontSize: 17}}>
+                            Date: {recording?.recordedDate.replace('T', ' ')}
+                        </ThemedText>
+                        <ThemedText style={{fontSize: 17}}>
+                            Type: {recording?.recordingType.toLowerCase()}
+                        </ThemedText>
+                        
+                    </View>
                     <DropDown menus={dropDownMenus}/>
             </ThemedView>
             <View style={styles.scrollContainer}>
@@ -391,7 +432,7 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         color: 'red',
         backgroundColor: '#282828',
-        width: 200,
+        width: 135,
         paddingVertical: 8,
         alignItems: 'center',
         justifyContent: 'center', 

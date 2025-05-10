@@ -1,12 +1,16 @@
 import { ThemedText } from "@/components/ThemedText";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Animated, Appearance, Button, ColorSchemeName, Pressable, SafeAreaView, StyleSheet } from "react-native";
+import { Alert, Animated, Appearance, AppState, Button, ColorSchemeName, Pressable, SafeAreaView, StyleSheet } from "react-native";
 import { Audio } from 'expo-av';
 import { ThemedView } from "@/components/ThemedView";
 import axios from "axios";
 import * as FileSystem from 'expo-file-system';
 import { Colors } from "@/constants/Colors";
 import { timeFormat } from "../util/timeFormat";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { createRecording } from "@/store/slices/recordingsSlice";
+import Spinner from "@/components/Spinner";
 
 
 
@@ -27,37 +31,50 @@ export default function User() {
   const colorScheme = Appearance.getColorScheme();
   const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
 
-  const uploadFile = async () => {
-      if (!recording?.getURI()!) {
-        Alert.alert('No file selected!');
-        return;
+  const { status, error } = useSelector((state: RootState) => state.recordings)
+
+  const dispatch = useDispatch<AppDispatch>()
+
+  const handleUpload = async (fileUri: string) => {
+          try {
+              await dispatch(createRecording(fileUri)).unwrap()
+              Alert.alert('Recording successfully Uploaded');
+          } catch (err) {
+              Alert.alert('Error Uplaoding Recording: ', error!);
+          }
       }
-      // if (!audioRecorder.uri) {
-      //   Alert.alert('No file selected!');
-      //   return;
-      // }
+
+  // const uploadFile = async () => {
+  //     if (!recording?.getURI()!) {
+  //       Alert.alert('No file selected!');
+  //       return;
+  //     }
+  //     // if (!audioRecorder.uri) {
+  //     //   Alert.alert('No file selected!');
+  //     //   return;
+  //     // }
       
   
     
     
   
-    try {
-      const response = await FileSystem.uploadAsync('http://localhost:8080/api/recordings/file', recording?.getURI()!, {
-        fieldName: 'file',
-        httpMethod: 'POST',
-        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-    });
+  //   try {
+  //     const response = await FileSystem.uploadAsync('http://localhost:8080/api/recordings/file', recording?.getURI()!, {
+  //       fieldName: 'file',
+  //       httpMethod: 'POST',
+  //       uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+  //   });
 
-      if (response.status === 201) {
-        Alert.alert('Upload successful');
-      } else {
-        Alert.alert('Upload failed');
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      Alert.alert('Error uploading file');
-    }
-  };
+  //     if (response.status === 201) {
+  //       Alert.alert('Upload successful');
+  //     } else {
+  //       Alert.alert('Upload failed');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error uploading file:', error);
+  //     Alert.alert('Error uploading file');
+  //   }
+  // };
 
   const startRecording = async () => {
   try {
@@ -95,10 +112,14 @@ export default function User() {
       );
       const uri = recording?.getURI();
       console.log('Recording stopped and stored at', uri);
-      uploadFile() 
+    if (uri) {
+      handleUpload(uri);
+      }
+      
   }
   return (
-      <SafeAreaView style={styles().container}>
+    <SafeAreaView style={styles().container}>
+      <Spinner isLoading={status === 'pending' ? true : false} text={'Uplaoding Recording...'} />
       <ThemedView style={styles().footer}>
           {/* <Button
               title={recording ? 'Stop Recording' : 'Start Recording'}

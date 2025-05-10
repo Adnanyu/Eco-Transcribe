@@ -1,22 +1,20 @@
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from "react";
 import { Audio } from "expo-av";
-import { Sound } from "expo-av/build/Audio";
-import { Button, View, StyleSheet, Pressable, Platform, ScrollView, SafeAreaView, FlatList, Dimensions, TextInput, Alert } from "react-native";
-import { IconSymbol } from "@/components/ui/IconSymbol";
+import { View, StyleSheet, Pressable, Platform, ScrollView, SafeAreaView, FlatList, Dimensions, TextInput, Alert } from "react-native";
 
 import {
     Text,
     Image,
     TouchableOpacity,
 } from 'react-native';
-import Slider from '@react-native-community/slider';
 import { Recording, Segments, Transcript } from "../../types/types";
 import { getRecording, getSegments, getTranscript, updateRecording, updateTranscript } from "../../api/api";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store/store";
+import { updateRecordingAsync } from "@/store/slices/recordingsSlice";
+import Spinner from "@/components/Spinner";
 
-const screenHeight = Dimensions.get('window').height;
 
 const FlatListHeader = ({handleSectionChange}: {handleSectionChange: (section: string) => void}) => {
     return (
@@ -37,7 +35,6 @@ const FlatListHeader = ({handleSectionChange}: {handleSectionChange: (section: s
                 </View>
             </Pressable>
         </View>
-
     )
 }
 
@@ -50,8 +47,9 @@ const TranscripComp = ({ text, mode, setTranscript }: { text: string, mode: 'edi
 }
 
 export default function RecordingDetail() {
-    const [recording, setRecording] = useState<Recording>();
     const { id } = useLocalSearchParams();
+    const recordingg = useSelector((state: RootState) => state.recordings.recordings.find(recording => recording.id.toString() === id.toString()));
+    const [recording, setRecording] = useState<Recording>(recordingg!);
     const [segments, setSegments] = useState<Segments[]>([]); 
     const [transcript, setTranscript] = useState<Transcript>(); 
     const [selectedItem, setSelectedItem] = useState({}); 
@@ -59,11 +57,15 @@ export default function RecordingDetail() {
     const [selectedIndex, setSelectedIndex] = useState<number>(1)
     const [textContent, setTextContent] = useState<string>('segments')
     console.log(transcript)
-    console.log(recording)
 
+    const { status, error } = useSelector((state: RootState) => state.recordings)
+    
     const navigation = useNavigation();
     const router = useRouter();
-
+    
+    console.log(recording)
+    
+    const dispatch = useDispatch<AppDispatch>();
     const handleSectionChange = (current: string): void => {
         // setTextContent((prev) => (prev === 'segment' ? 'segment' : 'transcript'))
         // current === 'segments' ? setTextContent('transcript') : setTextContent('segments')
@@ -71,16 +73,26 @@ export default function RecordingDetail() {
         console.log(textContent)
     }
 
-    const handleSave = async () => {
-        try {
+    // const handleSave = async () => {
+    //     try {
 
-            updateRecording(recording!);
-            updateTranscript(transcript!);
-            // router.push(`/recordings/${id}`); 
+    //         updateRecording(recording!);
+    //         updateTranscript(transcript!);
+    //         // router.push(`/recordings/${id}`); 
             
-        } catch (error) {
-          console.error('Error during save operation:', error);
+    //     } catch (error) {
+    //       console.error('Error during save operation:', error);
 
+    //     }
+    // };
+    
+    const handleSave = async (recording: Recording):Promise<void>  => {
+        try {
+            await dispatch(updateRecordingAsync(recording!)).unwrap();
+            Alert.alert('Recording updated successfully');
+            navigation.goBack();
+        } catch (err) {
+          Alert.alert('Error during save operation:');
         }
       };
     
@@ -89,10 +101,10 @@ export default function RecordingDetail() {
         const fetchApis = async () => {
             try {
                   console.log('id is: ', typeof(id.toString()))
-                const recording: Recording = await getRecording(id.toString());
+                // const recording: Recording = await getRecording(id.toString());
                 const segments: Segments[] = await getSegments(id.toString());
-                const transcript: Transcript | string = await getTranscript(id.toString());
-                setRecording(recording); 
+                const transcript: Transcript  = await getTranscript(id.toString());
+                // setRecording(recording); 
                 setSegments(segments); 
                 setTranscript(transcript); 
                 console.log(recording?.title)
@@ -109,10 +121,16 @@ export default function RecordingDetail() {
             headerRight: () => (
                 <TouchableOpacity onPress={() => {
                     // handleSave()
-                    updateRecording(recording!);
-                    updateTranscript(transcript!);
+                    // updateRecording(recording!);
+                    // await dispatch(updateRecordingAsync(recording!)).unwrap();
+                    handleSave(recording!)
+
+                    // updateTranscript(transcript!);
                     console.log('recording: ', recording)
                     console.log('transcript: ', transcript)
+                    // if (response === 201) {
+                    //     router.push(`/recordings/${id}`)
+                    // }
               }} style={{ paddingHorizontal: 15, paddingVertical: 5 }}>
                 <Text style={{ color: '#FA2E47', fontSize: 16 }}>Save</Text>
               </TouchableOpacity>
@@ -123,6 +141,7 @@ export default function RecordingDetail() {
     const Container = Platform.OS === 'web' ? ScrollView : SafeAreaView;
     return (
         <View >
+            <Spinner isLoading={status === 'pending' ? true : false} text={"Updating Recording"} />
             <View >
                 <TextInput style={styles.TitleInput} value={recording?.title.toString()} onChangeText={(value) => setRecording((prev => ({...prev, title: value})))} />
             </View>
@@ -249,7 +268,7 @@ const styles = StyleSheet.create({
         fontSize: 22
     },
     TitleInput: {
-        backgroundColor: '#282828',
+        backgroundColor: '#1c1c1f',
         color: 'white',
         borderColor: "gray",
         width: '100%',
