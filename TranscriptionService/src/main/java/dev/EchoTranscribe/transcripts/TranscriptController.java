@@ -43,9 +43,9 @@ public class TranscriptController {
         return ResponseEntity.ok(page.getContent());
     }
 
-    @GetMapping("/{id}")
-    private ResponseEntity<Transcript> findTranscript(@PathVariable Long id) {
-        Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(id);
+    @GetMapping("/{recording_id}")
+    private ResponseEntity<Transcript> findTranscript(@PathVariable Long recording_id) {
+        Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(recording_id);
         if (foundTranscript.isPresent()) {
             return ResponseEntity.ok(foundTranscript.get());
         }
@@ -79,12 +79,12 @@ public class TranscriptController {
             Transcript savedTranscript = transcriptRepository.save(newTranscript);
             
             foundRecording.ifPresent(r -> {
-                Recording updatedTranscript = r.withTranscriptId(savedTranscript.transcript_id());
+                Recording updatedTranscript = r.withTranscriptId(savedTranscript.getTranscriptId());
                 recordingRepository.save(updatedTranscript);
             });
             
-            URI locationOfTheNewTranscript = ucb.path("/transcripts/{id}")
-                    .buildAndExpand(savedTranscript.transcript_id()).toUri();
+            URI locationOfTheNewTranscript = ucb.path("/api/transcripts/{id}")
+                    .buildAndExpand(savedTranscript.getRecordingId()).toUri();
             return ResponseEntity.created(locationOfTheNewTranscript).build();
             
         } catch (Exception e) { 
@@ -97,18 +97,24 @@ public class TranscriptController {
     private ResponseEntity<Void> updateTranscript(@PathVariable Long id, @RequestBody Transcript transcript) {
         Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(id);
         if (foundTranscript.isPresent()) {
-            Transcript updatedTranscript = new Transcript(transcript.transcript_id(), transcript.recordingId(),
-                    transcript.text(), transcript.summary(), transcript.language());
+            Transcript updatedTranscript = new Transcript(transcript.getTranscriptId(), transcript.getRecordingId(),
+                    transcript.getText(), transcript.getSummary(), transcript.getLanguage());
             transcriptRepository.save(updatedTranscript);
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
     }
-    @DeleteMapping("{id}")
+    @DeleteMapping("/{id}")
     private ResponseEntity<Void> deleteTranscript(@PathVariable Long id) {
+        //now make this that it removes the trnascript id from the recording it selfe
         Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(id);
+        Optional<Recording> foundRecording = recordingRepository.findById(id);
         if (foundTranscript.isPresent()) {
-            transcriptRepository.deleteById(id);
+            transcriptRepository.deleteById(foundRecording.get().transcript());
+            foundRecording.ifPresent(r -> {
+                Recording updatedTranscript = r.withoutTranscriptId();
+                recordingRepository.save(updatedTranscript);
+            });
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
