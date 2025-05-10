@@ -1,6 +1,6 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, TouchableOpacity, Text } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -11,6 +11,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter()
 
   return (
     <Tabs
@@ -35,10 +36,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="chat"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'AI Chat',
+          tabBarIcon: ({ color, focused }) => <IconSymbol size={28} name={focused ? "message.badge.waveform.fill" : "message.badge.waveform"} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -52,17 +53,23 @@ export default function TabLayout() {
         options={{
           title: 'Recordings',
           headerTitle: 'All Recordings',
+          // headerRight: () => (
+          //   <TouchableOpacity onPress={() => router.push('/(tabs)/explore')}>
+          //     <Text style={{ marginRight: 10, color: 'blue' }}>Edit</Text>
+          //   </TouchableOpacity>),
+          headerStyle: {backgroundColor: 'red'},
      
           // tabBarIcon: ({ color }) => <MaterialIcons name="multitrack-audio" size={24} color={color} />,
           tabBarIcon: ({ color, focused }) => <IconSymbol size={28} name={focused ? "waveform" : "waveform"}  color={color} />,
         }}
       />
       <Tabs.Screen
-        name="user"
+        name="library"
         options={{
-          title: 'user',
+          title: 'Library',
+          headerStyle: {backgroundColor: 'red'},
           // tabBarIcon: ({ color }) => <MaterialIcons name="multitrack-audio" size={24} color={color} />,
-          tabBarIcon: ({ color, focused }) => <IconSymbol size={30} name={focused ? "person.crop.circle.fill" : "person.crop.circle"}  color={color} />,
+          tabBarIcon: ({ color, focused }) => <IconSymbol size={30} name={focused ? "rectangle.stack.badge.play.fill" : "rectangle.stack.badge.play"}  color={color} />,
         }}
       />
     </Tabs>
