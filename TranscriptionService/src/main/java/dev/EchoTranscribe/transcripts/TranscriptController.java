@@ -22,6 +22,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import dev.EchoTranscribe.records.Recording;
 import dev.EchoTranscribe.records.RecordingRepository;
+import dev.EchoTranscribe.summaries.Summary;
+import dev.EchoTranscribe.summaries.SummaryRepository;
+
 import org.springframework.web.client.RestTemplate;
 
 @RestController
@@ -30,10 +33,12 @@ public class TranscriptController {
 
     private final TranscriptRepository transcriptRepository;
     private final RecordingRepository recordingRepository;
+    private final SummaryRepository summaryRepository;
 
-    public TranscriptController(TranscriptRepository transcriptRepository, RecordingRepository recordingRepository) {
+    public TranscriptController(TranscriptRepository transcriptRepository, RecordingRepository recordingRepository, SummaryRepository summaryRepository) {
         this.transcriptRepository = transcriptRepository;
         this.recordingRepository = recordingRepository;
+        this.summaryRepository = summaryRepository;
     }
     
     @GetMapping()
@@ -109,11 +114,15 @@ public class TranscriptController {
         //now make this that it removes the trnascript id from the recording it selfe
         Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(id);
         Optional<Recording> foundRecording = recordingRepository.findById(id);
+        Optional<Summary> foundSummary = summaryRepository.findByRecordingId(id);
         if (foundTranscript.isPresent()) {
             transcriptRepository.deleteById(foundRecording.get().transcript());
             foundRecording.ifPresent(r -> {
                 Recording updatedTranscript = r.withoutTranscriptId();
                 recordingRepository.save(updatedTranscript);
+                if (foundSummary.isPresent()) {
+                    summaryRepository.deleteById(foundTranscript.get().getSummary());
+            }
             });
             return ResponseEntity.noContent().build();
         }
