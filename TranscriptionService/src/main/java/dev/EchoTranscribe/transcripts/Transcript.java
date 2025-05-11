@@ -20,14 +20,17 @@ public class Transcript {
 
     private String language;
 
+    private Long translatedTranscript;
+
     public Transcript() {}
 
-    public Transcript(Long transcriptId, Long recordingId, String text, Long summary, String language) {
+    public Transcript(Long transcriptId, Long recordingId, String text, Long summary, Long translatedTranscript, String language) {
         this.transcriptId = transcriptId;
         this.recordingId = recordingId;
         this.text = text;
         this.summary = summary;
         this.language = language;
+        this.translatedTranscript = translatedTranscript;
     }
 
     public Long getTranscriptId() {
@@ -68,6 +71,14 @@ public class Transcript {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    public Long getTranslatedTranscriptId() {
+        return translatedTranscript;
+    }
+
+    public void setTranslatedTranscriptId(Long translatedTranscript) {
+        this.translatedTranscript = translatedTranscript;
     }
 
 }
