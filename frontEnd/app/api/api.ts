@@ -44,6 +44,7 @@ export const getSegments = async (id: string): Promise<Segments[]> => {
         throw e;
     }
 }
+
 export const getTranscript = async (id: string): Promise<Transcript | string> => {
     try {
         const response = await fetch(`http://localhost:8080/api/transcripts/${id}`);
@@ -58,7 +59,21 @@ export const getTranscript = async (id: string): Promise<Transcript | string> =>
     }
 }
 
-export const uploadFile = async (fileUri: string | null): Promise<void> => {
+export const getTranscripts = async (): Promise<Transcript[]> => {
+    try {
+        const response = await fetch(`http://localhost:8080/api/transcripts`);
+        if (!response.ok) {
+            throw new Error('g');
+        }
+        const data = await response.json();
+        return data; 
+    } catch (e) {
+        console.log(e);
+        throw e
+    }
+}
+
+export const uploadFile = async (fileUri: string | null): Promise<Recording | undefined> => {
     if (!fileUri) {
       Alert.alert('No file selected!');
       return;
@@ -71,26 +86,25 @@ export const uploadFile = async (fileUri: string | null): Promise<void> => {
         uploadType: FileSystem.FileSystemUploadType.MULTIPART,
       });
 
-      if (response.status === 201) {
-        Alert.alert('Upload successful');
-      } else {
-        Alert.alert('Upload failed');
-      }
+        if (response.status !== 201) {
+            throw new Error(response.toString());
+        }
+        console.log(response.headers)
+        console.log('location is: ', response.headers['Location'])
+        const newRecoringResponse = await fetch(response.headers['Location']);
+        const data = await newRecoringResponse.json();
+        return data; 
     } catch (error) {
-      console.error('Error uploading file:', error);
-      Alert.alert('Error uploading file');
+      console.error('Error uploading file:');
+        Alert.alert('Error uploading file');
+        throw error
     }
 };
   
-export const updateRecording = async (recording: Recording): Promise<void> => {
+export const updateRecording = async (recording: Recording): Promise<number> => {
     try {
         const response = await axios.put(`http://localhost:8080/api/recordings/${recording.id}`, recording);
-        if (response.status == 204) {
-            Alert.alert('Recording updated Successfuly');
-        } else {
-            Alert.alert('updating recording failed');
-        }
-        
+        return response.status
     } catch (e) {
         console.log(e)
         throw e
@@ -100,42 +114,34 @@ export const updateRecording = async (recording: Recording): Promise<void> => {
 export const updateTranscript = async (transcript: Transcript): Promise<number> => {
     try {
         const response = await axios.put(`http://localhost:8080/api/transcripts/${transcript.recordingId}`, transcript);
-        if (response.status == 204) {
-            Alert.alert('Transcripts updated Successfuly');
-            return response.status
-        } else {
-            Alert.alert('updating transcript failed');
-            return response.status
-        }
+        return response.status
     } catch (e) {
         console.log(e)
         throw e;
     }
 };
 
-export const createTranscript = async (recording: Recording): Promise<void> => {
+export const createTranscript = async (recording: Recording): Promise<Transcript> => {
     try {
         const response = await axios.post(`http://localhost:8080/api/transcripts/${recording.id}`)
-        if (response.status === 201) {
-            Alert.alert(`transcript is created succesfully for ${recording.title}`)
-        } else {
-            Alert.alert('createding transcript failed');
+        if (response.status !== 201) {
+            throw new Error(response.toString());
         }
+        console.log('location is: ', response.headers.location)
+        const transcriptResponse = await fetch(response.headers.location);
+        const data = await transcriptResponse.json();
+        return data; 
+        // console.log(response);
     } catch (e){
         console.log(e);
         throw e;
     }
 }
 
-export const deleteTrancript = async (TranscriptId: string): Promise<void> => {
+export const deleteTrancript = async (transcript: Transcript): Promise<number> => {
     try {
-        console.log(`http://localhost:8080/api/transcripts/${TranscriptId}`)
-        const response = await axios.delete(`http://localhost:8080/api/transcripts/${TranscriptId}`)
-        if (response.status === 204) {
-            Alert.alert(`transcript is deleted succesfully for ${TranscriptId}`);
-        } else {
-            Alert.alert('deleting transcript failed');
-        }
+        const response = await axios.delete(`http://localhost:8080/api/transcripts/${transcript.recordingId}`)
+        return response.status
     } catch (e){
         console.log(e);
         throw e;
