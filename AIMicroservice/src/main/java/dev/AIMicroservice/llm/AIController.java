@@ -49,11 +49,14 @@ public class AIController {
     }
 
     @GetMapping("/translate/{id}")
-    private ResponseEntity<String> translate(@PathVariable Long id, @RequestParam String langauge) {
-        Optional<Transcript> transcript = transcriptRepository.findByRecordingId(id);
+    private ResponseEntity<String> translate(@PathVariable Long id, @RequestParam String language) {
+        System.out.println("langauge is: " + language);
+        System.out.println("id is: " + id.toString());
+        Optional<Transcript> transcript = transcriptRepository.findById(id);
+        System.out.println("found trnascript is: " + transcript);
         if (transcript.isPresent()) {
             String transcriptText = transcript.get().getText();
-            String fullMessage = "Please translate this transcript to" + langauge + "." + "\n\n" + "Transcript: " + transcriptText;
+            String fullMessage = "Please translate this transcript to " + language + "." + "\n\n" + "Transcript: " + transcriptText;
             return ResponseEntity.ok(chatClient.prompt().user(fullMessage).call().content());
         }
         return ResponseEntity.status(404).body("sorry something went wrong");

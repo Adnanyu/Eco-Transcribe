@@ -24,6 +24,8 @@ import dev.EchoTranscribe.records.Recording;
 import dev.EchoTranscribe.records.RecordingRepository;
 import dev.EchoTranscribe.summaries.Summary;
 import dev.EchoTranscribe.summaries.SummaryRepository;
+import dev.EchoTranscribe.translatedTranscripts.TranslatedTranscript;
+import dev.EchoTranscribe.translatedTranscripts.TranslatedTranscriptRepository;
 
 import org.springframework.web.client.RestTemplate;
 
@@ -34,17 +36,19 @@ public class TranscriptController {
     private final TranscriptRepository transcriptRepository;
     private final RecordingRepository recordingRepository;
     private final SummaryRepository summaryRepository;
+    private final TranslatedTranscriptRepository translatedTranscriptRepository;
 
-    public TranscriptController(TranscriptRepository transcriptRepository, RecordingRepository recordingRepository, SummaryRepository summaryRepository) {
+    public TranscriptController(TranscriptRepository transcriptRepository, RecordingRepository recordingRepository, SummaryRepository summaryRepository, TranslatedTranscriptRepository translatedTranscriptRepository) {
         this.transcriptRepository = transcriptRepository;
         this.recordingRepository = recordingRepository;
         this.summaryRepository = summaryRepository;
+        this.translatedTranscriptRepository = translatedTranscriptRepository;
     }
     
     @GetMapping()
     private ResponseEntity<List<Transcript>> findAllTranscripts(Pageable pageable){
         Page<Transcript> page = transcriptRepository.findAll(PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
-                pageable.getSortOr(Sort.by(Sort.Direction.ASC, "transcript_id"))));
+                pageable.getSortOr(Sort.by(Sort.Direction.ASC, "transcriptId"))));
         return ResponseEntity.ok(page.getContent());
     }
 
@@ -80,7 +84,7 @@ public class TranscriptController {
             JSONObject jsonObject = new JSONObject(response);
             String text = jsonObject.getString("text");
             
-            Transcript newTranscript = new Transcript(null, foundRecordingtId, text, null, "english");
+            Transcript newTranscript = new Transcript(null, foundRecordingtId, text, null, null,"english");
             Transcript savedTranscript = transcriptRepository.save(newTranscript);
             
             foundRecording.ifPresent(r -> {
@@ -103,7 +107,7 @@ public class TranscriptController {
         Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(id);
         if (foundTranscript.isPresent()) {
             Transcript updatedTranscript = new Transcript(transcript.getTranscriptId(), transcript.getRecordingId(),
-                    transcript.getText(), transcript.getSummary(), transcript.getLanguage());
+                    transcript.getText(), transcript.getSummary(), transcript.getTranslatedTranscriptId(),transcript.getLanguage());
             transcriptRepository.save(updatedTranscript);
             return ResponseEntity.noContent().build();
         }
@@ -115,17 +119,45 @@ public class TranscriptController {
         Optional<Transcript> foundTranscript = transcriptRepository.findByRecordingId(id);
         Optional<Recording> foundRecording = recordingRepository.findById(id);
         Optional<Summary> foundSummary = summaryRepository.findByRecordingId(id);
+        Optional<TranslatedTranscript> foundTranslatedTranscript = translatedTranscriptRepository.findByRecordingId(id);
+        // if (foundTranscript.isPresent()) {
+        //     foundRecording.ifPresent(r -> {
+        //         Recording updatedRecording = r.withoutTranscriptId();
+        //         recordingRepository.save(updatedRecording);
+        //         if (foundSummary.isPresent()) {
+        //             summaryRepository.deleteById(foundTranscript.get().getSummary());
+        //         }
+        //     });
+        //     foundTranslatedTranscript.ifPresent(t -> {
+        //         translatedTranscriptRepository.deleteById(foundTranslatedTranscript.get().getTranslatedTranscriptId());
+        //     });
+        //     transcriptRepository.deleteById(foundTranscript.get().getTranscriptId());
+        //     return ResponseEntity.noContent().build();
+        // }
         if (foundTranscript.isPresent()) {
-            transcriptRepository.deleteById(foundRecording.get().transcript());
             foundRecording.ifPresent(r -> {
-                Recording updatedTranscript = r.withoutTranscriptId();
-                recordingRepository.save(updatedTranscript);
-                if (foundSummary.isPresent()) {
-                    summaryRepository.deleteById(foundTranscript.get().getSummary());
-            }
+                Recording updatedRecording = r.withoutTranscriptId(); // Ensure this properly removes the reference
+                recordingRepository.save(updatedRecording); // Save the updated Recording
             });
+    
+            foundSummary.ifPresent(s -> {
+                summaryRepository.deleteById(foundTranscript.get().getSummary());
+            });
+
+            foundTranscript.ifPresent(t -> {
+                t.setTranslatedTranscriptId(null);
+                transcriptRepository.save(t);  
+            });
+    
+            foundTranslatedTranscript.ifPresent(t -> {
+                translatedTranscriptRepository.deleteById(t.getTranslatedTranscriptId());
+            });
+    
+            transcriptRepository.deleteById(foundTranscript.get().getTranscriptId());
+    
             return ResponseEntity.noContent().build();
         }
+    
         return ResponseEntity.notFound().build();
     }
     
