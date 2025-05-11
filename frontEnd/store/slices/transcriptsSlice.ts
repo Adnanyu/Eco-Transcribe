@@ -1,6 +1,6 @@
 import { createTranscript, deleteTrancript, getTranscripts, updateTranscript } from "@/app/api/api";
 import { Recording, Transcript } from "@/app/types/types";
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice, isPending, isRejected } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
 
@@ -54,61 +54,36 @@ const initialState: TranscriptsState = {
 export const transcriptsSlice = createSlice({
     name: 'transcripts',
     initialState,
-    reducers: {
-        // setText: (state, action: PayloadAction<string>) => {
-        //     state.text = action.payload;
-        // }
-    },
+    reducers: {},
     extraReducers: builder => {
-        builder.addCase(fetchTranscripts.pending, (state, action) => {
+        builder.addCase(fetchTranscripts.fulfilled, (state, action) => {
+            state.status = 'succeeded';
+            state.transcripts.push(...action.payload);
+        })
+        .addCase(createTranscriptAysnc.fulfilled, (state, action) => {
+            state.status = 'succeeded';
+            state.transcripts.push(action.payload);
+        })
+        .addCase(updateTranscriptAsync.fulfilled, (state, action) => {
+            state.status = 'succeeded';
+            const updated = action.payload;
+            const index = state.transcripts.findIndex(transcript => transcript.transcript_id.toString() === updated.transcript_id.toString());
+            if (index !== -1) {
+                state.transcripts[index] = updated;
+            }
+        })
+        .addCase(deleteTranscriptAsync.fulfilled, (state, action) => {
+            state.status = 'succeeded';
+            const deleted = action.payload;
+            state.transcripts.filter(transcript => transcript.transcript_id.toString() !== deleted.transcript_id.toString());
+        })
+        builder.addMatcher(isPending(fetchTranscripts, createTranscriptAysnc, updateTranscriptAsync, deleteTranscriptAsync), (state) => {
             state.status = 'pending';
-                })
-                    .addCase(fetchTranscripts.fulfilled, (state, action) => {
-                        state.status = 'succeeded';
-                        state.transcripts.push(...action.payload);
-                    })
-                    .addCase(fetchTranscripts.rejected, (state, action) => {
-                        state.status = 'failed';
-                        state.error = action.error.message ?? 'Unknown Error';
-                    })
-                    .addCase(createTranscriptAysnc.pending, (state, action) => {
-                        state.status = 'pending';
-                            })
-                    .addCase(createTranscriptAysnc.fulfilled, (state, action) => {
-                        state.status = 'succeeded';
-                        state.transcripts.push(action.payload);
-                    })
-                    .addCase(createTranscriptAysnc.rejected, (state, action) => {
-                        state.status = 'failed';
-                        state.error = action.error.message ?? 'Unknown Error';
-                    })
-                    .addCase(updateTranscriptAsync.pending, (state, action) => {
-                        state.status = 'pending';
-                    })
-                    .addCase(updateTranscriptAsync.fulfilled, (state, action) => {
-                        state.status = 'succeeded';
-                        const updated = action.payload;
-                        const index = state.transcripts.findIndex(transcript => transcript.transcript_id.toString() === updated.transcript_id.toString());
-                        if (index !== -1) {
-                            state.transcripts[index] = updated;
-                        }
-                    })
-                    .addCase(updateTranscriptAsync.rejected, (state, action) => {
-                        state.status = 'failed';
-                        state.error = action.error.message ?? 'Unknown Error';
-                    })
-                    .addCase(deleteTranscriptAsync.pending, (state, action) => {
-                        state.status = 'pending';
-                    })
-                    .addCase(deleteTranscriptAsync.fulfilled, (state, action) => {
-                        state.status = 'succeeded';
-                        const deleted = action.payload;
-                        state.transcripts.filter(transcript => transcript.transcript_id.toString() !== deleted.transcript_id.toString());
-                    })
-                    .addCase(deleteTranscriptAsync.rejected, (state, action) => {
-                        state.status = 'failed';
-                        state.error = action.error.message ?? 'Unknown Error';
-                    })
+        })
+        builder.addMatcher(isRejected(fetchTranscripts, createTranscriptAysnc, updateTranscriptAsync, deleteTranscriptAsync), (state, action) => {
+            state.status = 'failed';
+            state.error = action.error.message ?? 'Unknown Error';
+        })
     }
 })
 
