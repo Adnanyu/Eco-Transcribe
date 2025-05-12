@@ -1,28 +1,36 @@
-export type Recording = {
-    id: Number,
+export interface Recording {
+    id: number,
     recordingUrl: string,
     title: string,
     recordingType: string,
     recordedDate: string,
     duration: number,
-    recordingStartTim: string,
-    recordingEndTime: string,
-    transcript: Number,
-    subTranscripts: Number,
-    translatedTranscript: Number,
+    recordingStartTime: string | null,
+    recordingEndTime: string | null,
+    transcript: number | null,
+    subTranscripts: number | null,
+    translatedTranscript: number | null,
 };
   
-export type Segments = {
+export interface Segments {
     id: number,
     start: number,
     end: number,
     text: string,
 };
   
-export type Transcript = {
+export interface Transcript {
     transcriptId: number,
     recordingId: number,
     summary: number,
     langauge: string,
     text: string
-  };
+};
+  
+export interface Summary {
+    summaryId: number,
+    recordingId: number,
+    text: number,
+    langauge: string,
+};
+  
