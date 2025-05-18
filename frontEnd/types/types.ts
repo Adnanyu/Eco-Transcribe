@@ -22,15 +22,24 @@ export interface Segments {
 export interface Transcript {
     transcriptId: number,
     recordingId: number,
-    summary: number,
+    summary: number | null,
     langauge: string,
-    text: string
+    text: string,
+    translatedTranscript: number | null
 };
   
 export interface Summary {
     summaryId: number,
     recordingId: number,
-    text: number,
+    text: string,
+    langauge: string,
+};
+
+export interface TranslatedTranscript {
+    translatedTranscriptId: number,
+    transcriptId: number,
+    recordingId: number,
+    text: string
     langauge: string,
 };
   

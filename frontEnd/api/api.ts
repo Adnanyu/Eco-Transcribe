@@ -1,6 +1,6 @@
 import { Alert } from "react-native";
 import * as FileSystem from 'expo-file-system';
-import { Recording, Segments, Summary, Transcript } from "../types/types";
+import { Recording, Segments, Summary, Transcript, TranslatedTranscript } from "../types/types";
 import axios from "axios";
 
 export const getRecordings = async (): Promise<Recording[]> => {
@@ -17,7 +17,7 @@ export const getRecordings = async (): Promise<Recording[]> => {
     }
   }
 
-export const getRecording = async (id: string): Promise<Recording> => {
+export const getRecording = async (id: number): Promise<Recording> => {
     try {
         const response = await fetch(`http://localhost:8080/api/recordings/${id}`)
         if (!response.ok) {
@@ -45,7 +45,7 @@ export const getSegments = async (id: string): Promise<Segments[]> => {
     }
 }
 
-export const getTranscript = async (id: string): Promise<Transcript | string> => {
+export const getTranscript = async (id: number): Promise<Transcript> => {
     try {
         const response = await fetch(`http://localhost:8080/api/transcripts/${id}`);
         if (!response.ok) {
@@ -55,7 +55,7 @@ export const getTranscript = async (id: string): Promise<Transcript | string> =>
         return data; 
     } catch (e) {
         console.log(e);
-        return ''
+        throw e
     }
 }
 
@@ -73,14 +73,14 @@ export const getTranscripts = async (): Promise<Transcript[]> => {
     }
 }
 
-export const uploadFile = async (fileUri: string | null): Promise<Recording | undefined> => {
+export const uploadFile = async (fileUri: string | null, type: string): Promise<Recording | undefined> => {
     if (!fileUri) {
       Alert.alert('No file selected!');
       return;
     }
 
     try {
-      const response = await FileSystem.uploadAsync('http://localhost:8080/api/recordings/file', fileUri, {
+      const response = await FileSystem.uploadAsync(`http://localhost:8080/api/recordings/file?type=${type}`, fileUri, {
         fieldName: 'file',
         httpMethod: 'POST',
         uploadType: FileSystem.FileSystemUploadType.MULTIPART,
@@ -110,6 +110,16 @@ export const updateRecording = async (recording: Recording): Promise<number> => 
         throw e
     }
 };
+
+export const deleteRecording = async (recording: Recording): Promise<number> => {
+    try {
+        const response = await axios.delete(`http://localhost:8080/api/recordings/${recording.id}`)
+        return response.status
+    } catch (e){
+        console.log(e);
+        throw e;
+    }
+}
 
 export const updateTranscript = async (transcript: Transcript): Promise<number> => {
     try {
@@ -191,7 +201,74 @@ export const updateSummary = async (summary: Summary): Promise<number> => {
 
 export const deleteSummary = async (summary: Summary): Promise<number> => {
     try {
-        const response = await axios.delete(`http://localhost:8080/api/transcripts/${summary.recordingId}`)
+        const response = await axios.delete(`http://localhost:8080/api/summaries/${summary.recordingId}`)
+        return response.status
+    } catch (e){
+        console.log(e);
+        throw e;
+    }
+}
+
+export const getTranslatedTranscript = async (transcriptId: number): Promise<TranslatedTranscript> => {
+    try {
+        const response = await fetch(`http://localhost:8080/api/translated-transcripts/${transcriptId}`);
+        if (!response.ok) {
+            throw new Error('g');
+        }
+        const data = await response.json();
+        return data; 
+    } catch (e) {
+        console.log(e);
+        throw e
+    }
+}
+
+export const getTranslatedTranscripts = async (): Promise<TranslatedTranscript[]> => {
+    try {
+        const response = await fetch(`http://localhost:8080/api/translated-transcripts`);
+        if (!response.ok) {
+            throw new Error('g');
+        }
+        const data = await response.json();
+        return data; 
+    } catch (e) {
+        console.log(e);
+        throw e
+    }
+}
+
+export const createTranslatedTranscript = async (transcript: Transcript, language: String): Promise<TranslatedTranscript> => {
+    console.log(`http://localhost:8080/api/translated-transcripts/${transcript.transcriptId}?language=${language}`)
+    try {
+        const response = await axios.post(`http://localhost:8080/api/translated-transcripts/${transcript.transcriptId}?language=${language}`)
+        console.log('responseis: ',response)
+        if (response.status !== 201) {
+            throw new Error(response.toString());
+        }
+        console.log('location is: ', response.headers.location)
+        const summaryResponse = await fetch(response.headers.location);
+        const data = await summaryResponse.json();
+        return data; 
+        // console.log(response);
+    } catch (e){
+        console.log(e);
+        throw e;
+    }
+}
+
+export const updateTranslatedTranscript = async (translatedTranscript: TranslatedTranscript): Promise<number> => {
+    try {
+        const response = await axios.put(`http://localhost:8080/api/translated-transcripts/${translatedTranscript.transcriptId}`, translatedTranscript);
+        return response.status
+    } catch (e) {
+        console.log(e)
+        throw e;
+    }
+};
+
+export const deleteTranslatedTranscript = async (translatedTranscript: TranslatedTranscript): Promise<number> => {
+    try {
+        const response = await axios.delete(`http://localhost:8080/api/translated-transcripts/${translatedTranscript.transcriptId}`)
         return response.status
     } catch (e){
         console.log(e);

@@ -1,4 +1,4 @@
-import { Recording } from "../types/types";
+import { Recording } from "../../types/types";
 
 export const playSound = async (sound:any, setIsPlaying: (isPlaying: boolean) => void): Promise<void>  => {
         // console.log('loading sound');
