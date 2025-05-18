@@ -1,7 +1,9 @@
-import { createSummary, deleteSummary, getSummaries, updateSummary } from "@/app/api/api";
-import { Recording, Summary, Transcript } from "@/app/types/types";
+import { createSummary, deleteSummary, getSummaries, updateSummary } from "@/api/api";
+import { Recording, Summary, Transcript } from "@/types/types";
 import { createAsyncThunk, createSlice, isPending, isRejected } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
+import { deleteRecordingAsync } from "./recordingsSlice";
+import { deleteTranscriptAsync } from "./transcriptsSlice";
 
 
 export const fetchSummaries = createAsyncThunk('summaries/fetchSummaries', async () => {
@@ -29,14 +31,6 @@ export const deleteSummaryAsync = createAsyncThunk('summaries/deleteTranscript',
       }
     return summary
 })
-
-// const initialState: Transcript = {
-//     transcriptId: 0,
-//     recordingId: 0,
-//     summary: 0,
-//     langauge: '',
-//     text: ''
-// }
 
 
 interface SummariesState {
@@ -75,7 +69,21 @@ export const summariesSlice = createSlice({
         .addCase(deleteSummaryAsync.fulfilled, (state, action) => {
             state.status = 'succeeded';
             const deleted = action.payload;
-            state.summaries.filter(summary => summary.summaryId.toString() !== deleted.summaryId.toString());
+            state.summaries = state.summaries.filter(summary => summary.summaryId.toString() !== deleted.summaryId.toString());
+        })
+        .addCase(deleteRecordingAsync.fulfilled, (state, action) => {
+            state.status = 'succeeded';
+            const deleted = action.payload;
+            state.summaries = state.summaries.filter(
+            summary => summary.recordingId !== deleted.id
+            );
+        })
+        .addCase(deleteTranscriptAsync.fulfilled, (state, action) => {
+            state.status = 'succeeded';
+            const deleted = action.payload;
+            state.summaries = state.summaries.filter(
+            summary => summary.recordingId !== deleted.recordingId
+            );
         })
         builder.addMatcher(isPending(fetchSummaries, createSummaryAysnc, updateSummaryAsync, deleteSummaryAsync), (state) => {
             state.status = 'pending';
