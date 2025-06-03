@@ -50,10 +50,7 @@ public class AIController {
 
     @GetMapping("/translate/{id}")
     private ResponseEntity<String> translate(@PathVariable Long id, @RequestParam String language) {
-        System.out.println("langauge is: " + language);
-        System.out.println("id is: " + id.toString());
         Optional<Transcript> transcript = transcriptRepository.findById(id);
-        System.out.println("found trnascript is: " + transcript);
         if (transcript.isPresent()) {
             String transcriptText = transcript.get().getText();
             String fullMessage = "Please translate this transcript to " + language + "." + "\n\n" + "Transcript: " + transcriptText;
