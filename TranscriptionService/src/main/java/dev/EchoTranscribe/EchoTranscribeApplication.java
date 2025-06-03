@@ -17,7 +17,8 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 @EnableJdbcRepositories(basePackages = {
     "dev.EchoTranscribe.transcripts",
 	"dev.EchoTranscribe.records",
-	"dev.EchoTranscribe.summaries"
+	"dev.EchoTranscribe.summaries",
+	"dev.EchoTranscribe.translatedTranscripts",
 })
 public class EchoTranscribeApplication {
 
