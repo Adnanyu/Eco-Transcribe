@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
@@ -23,7 +25,7 @@ import dev.EchoTranscribe.transcripts.Transcript;
 import dev.EchoTranscribe.transcripts.TranscriptRepository;
 
 @RestController
-@RequestMapping("/api/summary")
+@RequestMapping("/api/summaries")
 public class SummaryController {
     private final SummaryRepository summaryRepository;
     private final TranscriptRepository transcriptRepository;
@@ -73,13 +75,24 @@ public class SummaryController {
             Summary savedSummary = summaryRepository.save(newSummary);
             foundTranscript.get().setSummary(savedSummary.getSummaryId());
             transcriptRepository.save(foundTranscript.get());
-            URI locationOfTheNewSummary = ucb.path("/api/summary/{id}")
+            URI locationOfTheNewSummary = ucb.path("/api/summaries/{id}")
                     .buildAndExpand(foundTranscript.get().getRecordingId())
                     .toUri();
             return ResponseEntity.created(locationOfTheNewSummary).build();
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Failed to transcribe the audio: " + e.getMessage());
         }
+    }
+    @PutMapping("/{recording_id}")
+    private ResponseEntity<Void> updateSummary(@PathVariable Long recording_id, @RequestBody Summary updatedSummary) {
+        Optional<Summary> foundTranscript = summaryRepository.findByRecordingId(recording_id);
+        if (foundTranscript.isPresent()) {
+            Summary foundSummary = new Summary(updatedSummary.getSummaryId(), updatedSummary.getRecordingId(), updatedSummary.getText(),
+                    updatedSummary.getLanguage());
+                    summaryRepository.save(foundSummary);
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
     }
     @DeleteMapping("/{recording_id}")
     private ResponseEntity<Void> deleteSummary(@PathVariable Long recording_id) {

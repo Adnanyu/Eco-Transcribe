@@ -75,10 +75,10 @@ public class TranscriptController {
         }
 
         try {
-            Long foundRecordingtId = foundRecording.get().id();
+            Long foundRecordingtId = foundRecording.get().getId();
             
             RestTemplate restTemplate = new RestTemplate();
-            String url = "http://localhost:8000/transcrip?url=" + foundRecording.get().recordingUrl();
+            String url = "http://localhost:8000/transcrip?url=" + foundRecording.get().getRecordingUrl();
             String response = restTemplate.getForObject(url, String.class);
             
             JSONObject jsonObject = new JSONObject(response);
@@ -88,8 +88,8 @@ public class TranscriptController {
             Transcript savedTranscript = transcriptRepository.save(newTranscript);
             
             foundRecording.ifPresent(r -> {
-                Recording updatedTranscript = r.withTranscriptId(savedTranscript.getTranscriptId());
-                recordingRepository.save(updatedTranscript);
+                r.setTranscript(savedTranscript.getTranscriptId());
+                recordingRepository.save(r);
             });
             
             URI locationOfTheNewTranscript = ucb.path("/api/transcripts/{id}")
@@ -136,19 +136,17 @@ public class TranscriptController {
         // }
         if (foundTranscript.isPresent()) {
             foundRecording.ifPresent(r -> {
-                Recording updatedRecording = r.withoutTranscriptId(); // Ensure this properly removes the reference
-                recordingRepository.save(updatedRecording); // Save the updated Recording
+                r.setTranscript(null); 
+                recordingRepository.save(r); 
             });
     
             foundSummary.ifPresent(s -> {
                 summaryRepository.deleteById(foundTranscript.get().getSummary());
             });
-
             foundTranscript.ifPresent(t -> {
                 t.setTranslatedTranscriptId(null);
                 transcriptRepository.save(t);  
             });
-    
             foundTranslatedTranscript.ifPresent(t -> {
                 translatedTranscriptRepository.deleteById(t.getTranslatedTranscriptId());
             });

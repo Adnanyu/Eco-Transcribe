@@ -22,21 +22,26 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import dev.EchoTranscribe.records.Recording;
+import dev.EchoTranscribe.records.RecordingRepository;
 import dev.EchoTranscribe.transcripts.Transcript;
 import dev.EchoTranscribe.transcripts.TranscriptRepository;
 
 @RestController
-@RequestMapping("/api/translated-transcript")
+@RequestMapping("/api/translated-transcripts")
 public class TranslatedTranscriptController {
-     private final TranslatedTranscriptRepository translatedTranscriptRepository;
+    private final TranslatedTranscriptRepository translatedTranscriptRepository;
     private final TranscriptRepository transcriptRepository;
+    private final RecordingRepository recordingRepository;
 
     @Autowired
     private RestTemplate restTemplate;
 
-    public TranslatedTranscriptController(TranslatedTranscriptRepository translatedTranscriptRepository, TranscriptRepository transcriptRepository) {
+    public TranslatedTranscriptController(TranslatedTranscriptRepository translatedTranscriptRepository, TranscriptRepository transcriptRepository, RecordingRepository recordingRepository) {
         this.translatedTranscriptRepository = translatedTranscriptRepository;
         this.transcriptRepository = transcriptRepository;
+        this.recordingRepository = recordingRepository;
     }
 
     @GetMapping()
@@ -59,16 +64,17 @@ public class TranslatedTranscriptController {
     private ResponseEntity<String> createTranslatedTranscript(@PathVariable Long transcript_id,
             @RequestParam String language, UriComponentsBuilder ucb) {
         Optional<Transcript> foundTranscript = transcriptRepository.findById(transcript_id);
-
         if (!foundTranscript.isPresent()) {
             return ResponseEntity.status(404).body("No Transcript found to be Translated.");
         }
-
+        
         Optional<TranslatedTranscript> foundTranslatedTranscript = translatedTranscriptRepository
-                .findByTranscriptId(transcript_id);
+        .findByTranscriptId(transcript_id);
         if (foundTranslatedTranscript.isPresent()) {
             return ResponseEntity.status(409).body("The Transcript Already Has a Translation");
         }
+        
+        Optional<Recording> foundRecording = recordingRepository.findById(foundTranscript.get().getRecordingId());
 
         try {
             // RestTemplate restTemplate = new RestTemplate();
@@ -82,8 +88,10 @@ public class TranslatedTranscriptController {
             TranslatedTranscript savedTranslatedTranscript = translatedTranscriptRepository
                     .save(newTranslatedTranscript);
             foundTranscript.get().setTranslatedTranscriptId(savedTranslatedTranscript.getTranslatedTranscriptId());
+            foundRecording.get().setTranslatedTranscript(savedTranslatedTranscript.getTranslatedTranscriptId());
             transcriptRepository.save(foundTranscript.get());
-            URI locationOfTheNewSummary = ucb.path("/api/translated-transcript/{id}")
+            recordingRepository.save(foundRecording.get());
+            URI locationOfTheNewSummary = ucb.path("/api/translated-transcripts/{id}")
                     .buildAndExpand(foundTranscript.get().getTranscriptId())
                     .toUri();
             return ResponseEntity.created(locationOfTheNewSummary).build();
@@ -108,10 +116,13 @@ public class TranslatedTranscriptController {
     private ResponseEntity<Void> deleteTranslatedTranscript(@PathVariable Long transcript_id) {
         Optional<TranslatedTranscript> foundTranslatedTranscript = translatedTranscriptRepository.findByTranscriptId(transcript_id);
         Optional<Transcript> foundTranscript = transcriptRepository.findById(transcript_id);
+        Optional<Recording> foundRecording = recordingRepository.findById(foundTranscript.get().getRecordingId());
         if (foundTranslatedTranscript.isPresent()) {
             foundTranscript.ifPresent(t -> {
                 t.setTranslatedTranscriptId(null);
+                foundRecording.get().setTranslatedTranscript(null);
                 transcriptRepository.save(t);
+                recordingRepository.save(foundRecording.get());
             });
             translatedTranscriptRepository.deleteById(foundTranslatedTranscript.get().getTranslatedTranscriptId());
             return ResponseEntity.noContent().build();
