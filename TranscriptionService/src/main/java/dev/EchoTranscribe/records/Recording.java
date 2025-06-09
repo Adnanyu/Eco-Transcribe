@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-@Table("RECORDING")
+@Table("recording")
 public class Recording {
 
     @Id
@@ -13,6 +13,7 @@ public class Recording {
     private String recordingUrl;
     private String title;
     private RecordingType recordingType;
+    // private RecordingType recordingType;
     private LocalDateTime recordedDate;
     private LocalDateTime recordingStartTime;
     private LocalDateTime recordingEndTime;
@@ -126,7 +127,7 @@ public class Recording {
         this.translatedTranscript = translatedTranscript;
     }
 
-    // Optionally, you could override equals() and hashCode() for better object comparison and use in collections.
+    
 }
 
 
