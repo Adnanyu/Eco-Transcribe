@@ -1,20 +1,22 @@
 from fastapi import APIRouter
-from fastapi import FastAPI, status
+from fastapi import status
 from fastapi.responses import JSONResponse
 import requests
 import io
 import whisper
 import tempfile
-
-
+import logging
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 model = whisper.load_model('base')
 router = APIRouter()
 
 @router.get('/transcrip/', tags=["transcripts"])
 async def transcribe(url: str):
-    response = requests.get(url)
     print(url)
+    response = requests.get(url)
     print(response)
     print(type(response.content))
     if response.status_code == 200:
