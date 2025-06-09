@@ -6,7 +6,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
 @EntityScan
-@Table(name = "TRANSCRIPT")
+@Table(name = "transcript")
 public class Transcript {
 
     @Id
@@ -82,20 +82,5 @@ public class Transcript {
     }
 
 }
-
-
-
-
-
-// CREATE TABLE
-//     IF NOT EXISTS transcripts (
-//         transcript_id INT NOT NULL,
-//         recording_id INT NOT NULL,
-//         text TEXT,
-//         summery TEXT,
-//         language VARCHAR,
-//         PRIMARY KEY (transcript_id),
-//         FOREIGN KEY (recording_id) REFERENCES recording(id)
-//     );
 
 
