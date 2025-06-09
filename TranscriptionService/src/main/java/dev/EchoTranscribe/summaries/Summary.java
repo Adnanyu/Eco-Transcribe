@@ -5,7 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
 @EntityScan
-@Table(name = "SUMMARY")
+@Table(name = "summary")
 public class Summary {
     
     @Id
