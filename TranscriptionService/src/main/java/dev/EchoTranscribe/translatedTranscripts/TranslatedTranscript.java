@@ -5,7 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
 @EntityScan
-@Table(name = "TRANSLATED_TRANSCRIPT")
+@Table(name = "translated_transcript")
 public class TranslatedTranscript {
     
     @Id
