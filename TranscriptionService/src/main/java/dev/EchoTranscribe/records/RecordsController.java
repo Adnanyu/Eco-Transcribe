@@ -141,7 +141,9 @@ public class RecordsController {
 
                 List<Recording> recordingNumber = (List<Recording>) recordingRepository.findAll();
 
-                String audioName = "audio_" + (recordingNumber.size() + 1);
+                String audioName = "New Recording " + (recordingNumber.size() + 1);
+
+                // String audioName = type == "UPLOADED" ? "New Upload " : "New Recording " + (recordingNumber.size() + 1);
 
                 Recording newRecording = new Recording(null, uploadResult.get("secure_url").toString(),
                         audioName, type.equals("UPLOADED") ? RecordingType.UPLOADED : RecordingType.RECORDED,
@@ -189,27 +191,6 @@ public class RecordsController {
         Optional<Recording> foundRecording = recordingRepository.findById(id);
 
         if (foundRecording.isPresent()) {
-            // Optional<Transcript> transcripts = transcriptRepository.findByRecordingId(id);
-            // Optional<SubTranscript> foundSegments = subTranscriptRespository.findByRecordingId(id);
-            // Optional<TranslatedTranscript> foundTranslated = translatedTranscriptRepository.findByRecordingId(id);
-            // if (!transcripts.isEmpty()) {
-            //     transcripts.get().setRecordingId(null);
-            //     transcripts.get().setTranslatedTranscriptId(null);
-            //     foundRecording.get().setTranscript(null);
-            //     foundTranslated.get().setTranscriptId(null);
-            //     translatedTranscriptRepository.save(foundTranslated.get());
-            //     transcriptRepository.deleteById(transcripts.get().getTranscriptId());
-            // }
-            // if (!foundSegments.isEmpty()) {
-            //     // subTranscriptRespository.deleteById(transcripts.get().getRecordingId());
-            //     foundRecording.get().setSubTranscripts(null);
-            // }
-            // if (!foundTranslated.isEmpty()) {
-            //     foundTranslated.get().setRecordingId(null);
-            //     foundTranslated.get().setTranscriptId(null);
-            //     foundRecording.get().setTranslatedTranscript(null);
-            //     translatedTranscriptRepository.deleteById(foundTranslated.get().getTranslatedTranscriptId());
-            // }
 
             Optional<Transcript> transcripts = transcriptRepository.findByRecordingId(id);
             Optional<SubTranscript> foundSegments = subTranscriptRespository.findByRecordingId(id);
@@ -218,24 +199,20 @@ public class RecordsController {
             
 
             if (transcripts.isPresent()) {
-                // Unlink the transcript before deletion
                 if (foundTranslated.isPresent()) {
-                    // Unlink the foreign key in TranslatedTranscript table
                     foundTranslated.get().setTranscriptId(null);
-                    translatedTranscriptRepository.save(foundTranslated.get());  // Save the change
+                    translatedTranscriptRepository.save(foundTranslated.get());  
                 }
 
                 if (!foundSegments.isEmpty()) {
-                        // subTranscriptRespository.deleteById(transcripts.get().getRecordingId());
+                        subTranscriptRespository.deleteById(transcripts.get().getRecordingId());
                         foundRecording.get().setSubTranscripts(null);
                     }
 
-                // Now you can delete the Transcript safely
                 transcriptRepository.deleteById(transcripts.get().getTranscriptId());
             }
 
             if (foundTranslated.isPresent()) {
-                // Unlink and delete the TranslatedTranscript
                 foundTranslated.get().setRecordingId(null);
                 translatedTranscriptRepository.deleteById(foundTranslated.get().getTranslatedTranscriptId());
             }
@@ -245,7 +222,6 @@ public class RecordsController {
                 summaryRepository.save(foundSummary.get());
                 summaryRepository.deleteById(foundSummary.get().getSummaryId());
             }
-            // Finally, delete the recording itself
             recordingRepository.deleteById(id);
 
             String message = "Recording with ID " + id + " and its associated transcripts have been deleted.";
