@@ -88,7 +88,93 @@ public class RecordsController {
             @RequestParam MultipartFile file, @RequestParam String type) {
         if (!file.isEmpty()) {
             try {
-                Map<String, Object> uploadResult = cloudinaryService.uploadAudio(file, file.getOriginalFilename());
+                Map<String, Object> uploadResult = cloudinaryService.uploadAudio(file, file.getOriginalFilename(), null);
+                String createdAtString = (String) uploadResult.get("created_at");
+
+                Object durationObj = uploadResult.get("duration");
+                double duration = durationObj != null ? ((Number) durationObj).doubleValue() : 0;
+
+                System.out.println("Duration: " + duration + " seconds");
+                DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
+                LocalDateTime recordingDate = LocalDateTime.parse(createdAtString, formatter);
+
+                logger.info("Durataion of audio:", duration);
+
+                RestTemplate restTemplate = new RestTemplate();
+
+                String url = "http://localhost:8000/transcrip?url=" + uploadResult.get("secure_url").toString();
+                System.out.println(uploadResult);
+
+                String response = restTemplate.getForObject(url, String.class);
+
+                JSONObject jsonObject = new JSONObject(response);
+
+                JSONArray jsonSegments = jsonObject.getJSONArray("segments");
+
+                List<Segment> segmentList = new ArrayList<>();
+
+                for (int i = 0; i < jsonSegments.length(); i++) {
+                    JSONObject segmentObj = jsonSegments.getJSONObject(i);
+
+                    Segment segment = new Segment(
+                            segmentObj.getInt("id"),
+                            segmentObj.getDouble("start"),
+                            segmentObj.getDouble("end"),
+                            segmentObj.getString("text"));
+
+                    segmentList.add(segment);
+                }
+
+                logger.info(jsonObject.get("segments").toString());
+                // logger.info(subTranscript.toString());
+                // List<Segments> list = Arrays.asList(subTranscript);
+                // logger.info("list is: \n" + list.toString());
+                // segmentsRespository.saveAll(list);
+
+                String text = jsonObject.getString("text");
+
+                Transcript trancriptedText = new Transcript(null, null, text, null, null, "English");//I wrote english here now but will make it dynamic later
+
+                Transcript savedTranscript = transcriptRepository.save(trancriptedText);
+                logger.info(savedTranscript.getTranscriptId().toString());
+
+                List<Recording> recordingNumber = (List<Recording>) recordingRepository.findAll();
+
+                String audioName = "New Recording " + (recordingNumber.size() + 1);
+
+                // String audioName = type == "UPLOADED" ? "New Upload " : "New Recording " + (recordingNumber.size() + 1);
+
+                Recording newRecording = new Recording(null, uploadResult.get("secure_url").toString(),
+                        audioName, type.equals("UPLOADED") ? RecordingType.UPLOADED : RecordingType.RECORDED,
+                        recordingDate, null, null, duration,
+                        savedTranscript.getTranscriptId(), null,
+                        null);
+                Recording savedRecording = recordingRepository.save(newRecording);
+
+                SubTranscript subTranscript = new SubTranscript(null, savedRecording.getId(), segmentList);
+
+                subTranscriptRespository.save(subTranscript);
+
+                // trancriptedText.setRecordingId(savedTranscript.getRecordingId());
+                savedTranscript.setRecordingId(savedRecording.getId());
+                transcriptRepository.save(savedTranscript);
+
+                System.out.println(uploadResult.get("url"));
+                URI locationOfTheNewRecording = ucb.path("/api/recordings/{id}").buildAndExpand(savedRecording.getId())
+                        .toUri();
+                System.out.println(locationOfTheNewRecording);
+                return ResponseEntity.created(locationOfTheNewRecording).build();
+            } catch (IOException e) {
+                return ResponseEntity.status(500).body("Failed to upload audio");
+            }
+        }
+        return ResponseEntity.status(500).body("Failed to upload audio");
+    }
+    @PostMapping("/import")
+    private ResponseEntity<String> importRecording(UriComponentsBuilder ucb, @RequestParam String link) {
+        if (!link.isEmpty()) {
+            try {
+                Map<String, Object> uploadResult = cloudinaryService.uploadAudio(null, null, link);
                 String createdAtString = (String) uploadResult.get("created_at");
 
                 Object durationObj = uploadResult.get("duration");
@@ -146,7 +232,7 @@ public class RecordsController {
                 // String audioName = type == "UPLOADED" ? "New Upload " : "New Recording " + (recordingNumber.size() + 1);
 
                 Recording newRecording = new Recording(null, uploadResult.get("secure_url").toString(),
-                        audioName, type.equals("UPLOADED") ? RecordingType.UPLOADED : RecordingType.RECORDED,
+                        audioName, RecordingType.LINK,
                         recordingDate, null, null, duration,
                         savedTranscript.getTranscriptId(), null,
                         null);
@@ -166,10 +252,10 @@ public class RecordsController {
                 System.out.println(locationOfTheNewRecording);
                 return ResponseEntity.created(locationOfTheNewRecording).build();
             } catch (IOException e) {
-                return ResponseEntity.status(500).body("Failed to upload audio");
+                return ResponseEntity.status(500).body("Failed to import audio");
             }
         }
-        return ResponseEntity.status(500).body("Failed to upload audio");
+        return ResponseEntity.status(500).body("Failed to import audio");
     }
     @PutMapping("/{id}")
     private ResponseEntity<Void> updateRecording(@PathVariable Long id, @RequestBody Recording recording) {
