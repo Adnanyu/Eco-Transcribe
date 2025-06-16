@@ -4,7 +4,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import whisper 
 from connection import Connection
 router = APIRouter()
-model = whisper.load_model("base")
+model = whisper.load_model("small")
 
 
 connections: dict[WebSocket, Connection] = {}
@@ -25,7 +25,7 @@ async def ws_endpoint(ws: WebSocket):
                     conn.buffer.extend(pcm)
 
                 # trigger transcription every 4 chunks
-                if len(conn.buffer) >= 3 * 16000 * 2:  # e.g. 4s of audio
+                if len(conn.buffer) >= 2 * 16000 * 2:  # e.g. 4s of audio
                     # fire and forget
                     asyncio.create_task(conn.process_buffer())
 
