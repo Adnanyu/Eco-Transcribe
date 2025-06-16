@@ -2,8 +2,8 @@ import { createSlice, isPending, isRejected, PayloadAction } from "@reduxjs/tool
 import type { RootState } from "../store";
 import { createAppAsyncThunk } from "../withTypes";
 import { Recording } from "@/types/types";
-import { deleteRecording, getRecordings, updateRecording, uploadFile } from "@/api/api";
-import { createTranscriptAysnc, deleteTranscriptAsync } from "./transcriptsSlice";
+import { createRecordingWithUrl, deleteRecording, getRecordings, updateRecording, uploadFile } from "@/api/api";
+import { createTranscriptAysnc, deleteTranscriptAsync, fetchTranscript } from "./transcriptsSlice";
 import { createTranslatedTranscriptAysnc, deleteTranslatedTranscriptAsync } from "./translatedSlice";
 
 export const fetchRecordings = createAppAsyncThunk('recordings/fetchRecordings', async () => {
@@ -11,8 +11,18 @@ export const fetchRecordings = createAppAsyncThunk('recordings/fetchRecordings',
     return recordings
 })
 
-export const createRecording = createAppAsyncThunk('recordings/uplaodRecording', async ({fileUri, type}:{fileUri: string | null, type: string}) => {
+export const createRecording = createAppAsyncThunk('recordings/uplaodRecording', async ({fileUri, type}:{fileUri: string | null, type: string}, { dispatch }) => {
     const recording = await uploadFile(fileUri, type);
+    if (recording?.id) {
+        await dispatch(fetchTranscript(recording.id));
+      }
+    return recording
+})
+export const importRecordingWithUrl = createAppAsyncThunk('recordings/importRecording', async (url: string, { dispatch }) => {
+    const recording = await createRecordingWithUrl(url);
+    if (recording?.id) {
+        await dispatch(fetchTranscript(recording.id));
+    }
     return recording
 })
 
@@ -77,6 +87,10 @@ const recordingsSlice = createSlice({
                 state.status = 'succeeded'
                 if(action.payload) state.recordings.unshift(action.payload)
             })
+            .addCase(importRecordingWithUrl.fulfilled, (state, action) => {
+                state.status = 'succeeded'
+                if(action.payload) state.recordings.unshift(action.payload)
+            })
             .addCase(createTranslatedTranscriptAysnc.fulfilled, (state, action) => { 
                 state.status = 'succeeded';
                 const createdTranslation = action.payload;
@@ -116,10 +130,10 @@ const recordingsSlice = createSlice({
                 recording => recording.id !== deleted.id
               );
             })
-        .addMatcher(isPending(createRecording, updateRecordingAsync, fetchRecordings, deleteRecordingAsync), (state) => {
+        .addMatcher(isPending(createRecording, updateRecordingAsync, fetchRecordings, deleteRecordingAsync, importRecordingWithUrl), (state) => {
             state.status = 'pending';
         })
-        .addMatcher(isRejected(createRecording, updateRecordingAsync, fetchRecordings, deleteRecordingAsync), (state, action) => {
+        .addMatcher(isRejected(createRecording, updateRecordingAsync, fetchRecordings, deleteRecordingAsync, importRecordingWithUrl), (state, action) => {
             state.status = 'failed';
             state.error = action.error.message ?? 'Unknown Error';
         })
