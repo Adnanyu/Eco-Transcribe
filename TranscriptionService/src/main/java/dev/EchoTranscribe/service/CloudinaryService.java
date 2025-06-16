@@ -7,7 +7,6 @@ package dev.EchoTranscribe.service;
 // // import io.github.cdimascio.dotenv.Dotenv;
 
 // // @Configuration
-
 // // public class CloudinaryConfig {
 
 // //     @Bean
@@ -67,6 +66,7 @@ import com.cloudinary.utils.ObjectUtils;
 
 import jakarta.annotation.Resource;
 
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -79,21 +79,28 @@ public class CloudinaryService {
     @Resource
     private Cloudinary cloudinary;
 
+    
+
 
     @SuppressWarnings("unchecked")
-    public Map<String, Object> uploadAudio(MultipartFile file, String fileName) throws IOException {
+    public Map<String, Object> uploadAudio(@Nullable MultipartFile file, @Nullable String fileName,@Nullable String url) throws IOException {
         try {
             // HashMap<Object, Object> options = new HashMap<>();
             // options.put("folder", "Apartment-seeker");
-            Map<String, Boolean> params = ObjectUtils.asMap(
+            Map<String, Object> params = ObjectUtils.asMap(
                     "use_filename", false,
                     "unique_filename", true,
                     "folder", "Eco-Transcribe",
                     "resource_type", "auto",
-                    "filename_override", fileName,
-                    "resource_type", "auto",
                     "overwrite", true);
-            return (Map<String, Object>) cloudinary.uploader().upload(file.getBytes(), params);
+            if (fileName != null && !fileName.isEmpty()) {
+                params.put("filename_override", fileName);
+            }
+            if (file == null && !url.isEmpty()) {
+                return (Map<String, Object>) cloudinary.uploader().upload(url, params);
+            } else {
+                return (Map<String, Object>) cloudinary.uploader().upload(file.getBytes(), params);
+            }
         }catch(IOException e){
             e.printStackTrace();
             return null;
