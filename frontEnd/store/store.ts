@@ -1,5 +1,4 @@
 import { configureStore } from '@reduxjs/toolkit'
-import recordingReducer from './slices/recordingSlice'
 import recordingsReducer from './slices/recordingsSlice'
 import transcriptsReducer from './slices/transcriptsSlice'
 import summariesReducer from './slices/summariesSlice'
